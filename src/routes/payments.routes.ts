@@ -8,7 +8,7 @@ const router = Router()
 
 router.get('/:raffleId',
     authenticate,
-    checkRole(['vendedor', 'responsable']),
+    checkRole(['vendedor', 'responsable','admin']),
     validateIdParam('raffleId'),
     raffleExists,
     validateUserRaffle,
@@ -17,7 +17,7 @@ router.get('/:raffleId',
 
 router.get('/:raffleId/numbers',
     authenticate,
-    checkRole(['responsable']),
+    checkRole(['responsable', 'admin']),
     validateIdParam('raffleId'),
     raffleExists,
     validateUserRaffle,

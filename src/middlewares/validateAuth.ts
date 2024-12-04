@@ -33,9 +33,9 @@ export const createRolSchema = z.object({
 });
 
 export const loginSchema = z.object({
-    email: z
+    identificationNumber: z
         .string()
-        .email("Debe proporcionar un correo electrónico válido"),
+        .min(1, "el numero de identificacion es obligatoria"),
     password: z
         .string()
         .min(1, "La contraseña es obligatoria")
@@ -73,8 +73,7 @@ export const createUserSchema = z.object({
         .min(8, "La contraseña debe tener al menos 8 caracteres")
         .regex(/[A-Z]/, "La contraseña debe incluir al menos una letra mayúscula")
         .regex(/[a-z]/, "La contraseña debe incluir al menos una letra minúscula")
-        .regex(/\d/, "La contraseña debe incluir al menos un número")
-        .regex(/[^a-zA-Z0-9]/, "La contraseña debe incluir al menos un carácter especial"),
+        .regex(/\d/, "La contraseña debe incluir al menos un número"),
     confirmPassword: z.string(),
     rolName: z.enum(rolEnum, {
         required_error: "El rol es obligatorio",

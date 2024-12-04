@@ -3,31 +3,31 @@ import Raffle from '../models/raffle';
 import RaffleNumbers from '../models/raffle_numbers';
 import UserRifa from '../models/user_raffle';
 import User from '../models/user';
+import { Op } from 'sequelize';
 
 class raffleController {
 
     static getRaffles = async (req : Request, res : Response) => {
-        const { finalizada, pendig, cancel, page = 1, limit = 10} = req.query
+        const {search, page = 1, limit = 4} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
         try {
+            let filter : any = {}
+
+            if (search) {
+                filter[Op.or] = [
+                    { name: { [Op.like]: `%${search}%` } }, 
+                    { nitResponsable: { [Op.like]: `%${search}%` } },  
+                    { nameResponsable: { [Op.like]: `%${search}%` } },  
+                    { description: { [Op.like]: `%${search}%` } }, 
+                ];
+            }
 
             const isUser = req.user.dataValues.rol.dataValues.name !== 'admin'
             
-            let filter : any = {}
             let filterUserRaffle : any = {}
-
-            if (finalizada && !pendig && !cancel ) {
-                filter.status = 'finally'
-            }
-            if (!finalizada && pendig && !cancel ) {
-                filter.status = 'pendig'
-            }
-            if (!finalizada && !pendig && cancel ) {
-                filter.status = 'cancel'
-            }
 
             if (isUser) {
                 filterUserRaffle.userId = req.user.id
@@ -35,7 +35,7 @@ class raffleController {
 
             const { count, rows: raffles} = await Raffle.findAndCountAll({
                 distinct: true,
-                attributes: ['id', 'name', 'description', 'status', 'startDate', 'playDate', 'editDate', 'price', 'banerImgUrl'],
+                attributes: ['id', 'name', 'description', 'startDate', 'playDate', 'editDate', 'price', 'banerImgUrl', 'nitResponsable', 'nameResponsable'],
                 where: filter,
                 ...(isUser ? { 
                     include: [
@@ -69,7 +69,15 @@ class raffleController {
 
     static getRaffleById = async (req : Request, res : Response) => {
         try {
-            const raffle = await Raffle.findByPk(req.raffle.id)
+            const raffle = await Raffle.findByPk(req.raffle.id,{
+                include: [
+                    {
+                        model: UserRifa,
+                        as: 'userRiffle',
+                        attributes: ['userId']
+                    }
+                ]
+            })
 
             res.json(raffle)
         } catch (error) {
@@ -79,7 +87,7 @@ class raffleController {
     }
 
     static createRaffle = async (req : Request, res : Response) => {
-        const {name, description, startDate, playDate, price, banerImgUrl, quantity = 1000} = req.body
+        const {name, nitResponsable, nameResponsable, description, startDate, playDate, price, banerImgUrl, quantity = 1000} = req.body
         try {
 
             const editDate = new Date(playDate); 
@@ -87,6 +95,8 @@ class raffleController {
 
             const raffle = await Raffle.create({
                 name,
+                nitResponsable,
+                nameResponsable,
                 description, 
                 startDate,
                 playDate,
@@ -112,12 +122,17 @@ class raffleController {
     } 
 
     static updateRaffle = async (req : Request, res : Response) => {
-        const {name, description, banerImgUrl} = req.body
+        const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate} = req.body
         try {
             await req.raffle.update({
                 name,
                 description,
-                banerImgUrl
+                banerImgUrl,
+                nitResponsable,
+                nameResponsable,
+                startDate,
+                playDate,
+                editDate
             })
             res.send('Rifa actualizada correctamente')
         } catch (error) {
@@ -170,6 +185,10 @@ class raffleController {
                 rifaId: req.raffle.id,
                 role: req.user.dataValues.rol.dataValues.name
             })
+            
+            req.app.get('io').emit('assigUser', {
+                userId: req.user.id
+            }); 
 
             res.status(201).send('User assignado correctamente')
         } catch (error) {
@@ -194,6 +213,10 @@ class raffleController {
             }
 
             await userRaffle.destroy()
+
+            req.app.get('io').emit('deleteAssigUser', {
+                userId: req.user.id
+            }); 
 
             res.status(201).send('Asignación eliminada correctamente')
         } catch (error) {

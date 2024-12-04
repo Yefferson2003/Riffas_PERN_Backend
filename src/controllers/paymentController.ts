@@ -48,7 +48,6 @@ class paymentController {
 
             const {count, rows: numbersPayments} = await RaffleNumbers.findAndCountAll({
                 distinct: true,
-                attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
                 where: {
                     raffleId: req.raffle.id,
                     ...filter
@@ -57,7 +56,6 @@ class paymentController {
                     {
                         model: Payment,
                         as: 'payments',
-                        attributes: ['id', 'amount', 'paidAt', 'createdAt'],
                         where: {
                             userId: req.user.id
                         }
@@ -114,7 +112,6 @@ class paymentController {
 
             const {count, rows: numbersPayments} = await RaffleNumbers.findAndCountAll({
                 distinct: true,
-                attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
                 where: {
                     raffleId: req.raffle.id,
                     ...filter
@@ -123,7 +120,6 @@ class paymentController {
                     {
                         model: Payment,
                         as: 'payments',
-                        attributes: ['id', 'amount', 'paidAt', 'createdAt'],
                     },
                 ],
                 limit: limitNumber,

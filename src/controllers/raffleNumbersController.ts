@@ -2,12 +2,13 @@ import { Request, Response } from 'express';
 import Payment from '../models/payment';
 import RaffleNumbers from '../models/raffle_numbers';
 import User from '../models/user';
+import { Op } from 'sequelize';
 
 
 class raffleNumbersControllers {
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {available, sold, pending, page = 1, limit = 100} = req.query
+        const {search, available, sold, pending, page = 1, limit = 100} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -29,6 +30,16 @@ class raffleNumbersControllers {
 
             filter.raffleId = req.raffle.id
 
+            if (search) {
+                filter[Op.or] = [
+                    // { firstName: { [Op.like]: `%${search}%` } }, 
+                    // { lastName: { [Op.like]: `%${search}%` } },  
+                    { identificationNumber:  { [Op.eq]: search }},
+                    // { phone: { [Op.eq]: search }}, 
+                    { number: { [Op.eq]: +search } }, 
+                ];
+            }
+
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status'],
@@ -49,9 +60,57 @@ class raffleNumbersControllers {
         }
     }
 
+    static getRaffleNumbersForExel = async (req: Request, res: Response) => {
+        const { page = 1, limit = 1000} = req.query
+
+        const pageNumber = parseInt(page as string);
+        const limitNumber = parseInt(limit as string);
+        const offset = (pageNumber - 1) * limitNumber;
+        try {
+
+            let filter : any = {}
+
+            filter.raffleId = req.raffle.id
+
+            const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
+                where: filter,
+                attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address'],
+                limit: limitNumber,
+                offset,
+                order: [['number', 'ASC']],
+            })
+
+            res.json({
+                total: count,
+                raffleNumbers,
+                totalPages: Math.ceil(count / limitNumber),
+                currentPage: pageNumber,
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
     static getRaffleNumberById = async (req: Request, res: Response) => {
         try {
-            res.json(req.raffleNumber)
+
+            const raffleNumber = await RaffleNumbers.findByPk(req.raffleNumber.id,{
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments', 
+                        include: [
+                            {
+                                model: User,
+                                as: 'user',
+                                attributes: ['firstName','lastName', 'identificationNumber']
+                            }
+                        ]
+                    },
+                ],
+            })
+            res.json(raffleNumber)
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
@@ -99,11 +158,28 @@ class raffleNumbersControllers {
                 
             );
 
-            res.json({
-                message: 'Rifas vendidas',
-                payments,
-                raffleNumbers: updatedInstances
-            })
+            const raffleNumber = await RaffleNumbers.findAll({
+                where: { id: raffleNumbersIds },
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments', 
+                        include: [
+                            {
+                                model: User,
+                                as: 'user',
+                                attributes: ['firstName','lastName', 'identificationNumber']
+                            }
+                        ]
+                    },
+                ],
+            });
+
+            req.app.get('io').emit('sellNumbers', {
+                raffleId: req.raffle.id
+            }); 
+
+            res.json(raffleNumber)
         } catch (error) {
             console.log(error)
             res.status(500).json({error: 'Hubo un Error'})
@@ -174,7 +250,28 @@ class raffleNumbersControllers {
                     })
                 }
 
-                res.status(201).send('Rifa Comprada')
+                const raffleNumber = await RaffleNumbers.findOne({
+                    where: {
+                        id: req.raffleNumber.id
+                    },
+                    include: [
+                        {
+                            model: Payment,
+                            as : 'payments',
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'user',
+                                    attributes: ['firstName','lastName', 'identificationNumber']
+                                }
+                            ]
+                        }
+                    ]
+                })
+                res.json([raffleNumber])
+                req.app.get('io').emit('sellNumbers', {
+                    raffleId: req.raffle.id
+                }); 
                 return
             }
 
@@ -226,7 +323,28 @@ class raffleNumbersControllers {
                     })
                 }
                 
-                res.status(201).send('Rifa Comprada')
+                const raffleNumber = await RaffleNumbers.findOne({
+                    where: {
+                        id: req.raffleNumber.id
+                    },
+                    include: [
+                        {
+                            model: Payment,
+                            as : 'payments',
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'user',
+                                    attributes: ['firstName','lastName', 'identificationNumber']
+                                }
+                            ]
+                        }
+                    ]
+                })
+                res.json([raffleNumber])
+                req.app.get('io').emit('sellNumbers', {
+                    raffleId: req.raffle.id
+                }); 
                 return
             }
             
@@ -278,6 +396,9 @@ class raffleNumbersControllers {
                     riffleNumberId: req.raffleNumber.id
                 }
             })
+            req.app.get('io').emit('sellNumbers', {
+                raffleId: req.raffle.id
+            }); 
 
             res.send('Rifa restablecida correctamente')
         } catch (error) {

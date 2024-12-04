@@ -16,17 +16,22 @@ class Raffle extends Model {
     name: string
 
     @Column({
+        type: DataType.STRING,
+        allowNull: false
+    })
+    nitResponsable: string
+    
+    @Column({
+        type: DataType.STRING,
+        allowNull: false
+    })
+    nameResponsable: string
+
+    @Column({
         type: DataType.TEXT,
         allowNull: true
     })
     description: string
-
-    @Default('pendig')
-    @Column({
-        type: DataType.ENUM(...rifflesStatusEnum),
-        allowNull: false
-    })
-    status: string
 
     @Column({
         type: DataType.DATE,
@@ -52,6 +57,7 @@ class Raffle extends Model {
     })
     price: number
 
+    @Default('https://res.cloudinary.com/dkqd7yggo/image/upload/v1733066711/cfxhlnkol71lyfpp8amy.jpg')
     @Column({
         type: DataType.TEXT,
         allowNull: true

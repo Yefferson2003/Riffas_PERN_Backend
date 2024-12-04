@@ -7,6 +7,14 @@ export const createRifaSchema = z.object({
         .string()
         .min(3, { message: "El nombre debe tener al menos 3 caracteres." })
         .max(100, { message: "El nombre no debe superar los 100 caracteres." }),
+    nitResponsable: z
+        .string()
+        .min(3, { message: "El nit del responsable debe tener al menos 3 caracteres." })
+        .max(100, { message: "El nit del responsable no debe superar los 100 caracteres." }),
+    nameResponsable: z
+        .string()
+        .min(3, { message: "El nombre del responsable debe tener al menos 3 caracteres." })
+        .max(100, { message: "El nombre del responsable no debe superar los 100 caracteres." }),
     description: z
         .string()
         .min(10, { message: "La descripción debe tener al menos 10 caracteres." })
@@ -50,6 +58,24 @@ export const updateRifaSchema = z.object({
         .string()
         .min(10, { message: "La descripción debe tener al menos 10 caracteres." })
         .max(500, { message: "La descripción no debe superar los 500 caracteres." }),
+    nitResponsable: z
+        .string()
+        .min(3, { message: "El nit del responsable debe tener al menos 3 caracteres." })
+        .max(100, { message: "El nit del responsable no debe superar los 100 caracteres." }),
+    nameResponsable: z
+        .string()
+        .min(3, { message: "El nombre del responsable debe tener al menos 3 caracteres." })
+        .max(100, { message: "El nombre del responsable no debe superar los 100 caracteres." }),
+    startDate: z
+        .string()
+        .refine((val) => !isNaN(new Date(val).getTime()), {
+            message: "La fecha de inicio debe ser una fecha válida.",
+        }),
+    playDate: z
+        .string()
+        .refine((val) => !isNaN(new Date(val).getTime()), {
+            message: "La fecha de juego debe ser una fecha válida.",
+        }),
 })
 
 export const sellRaffleNumbersSchema = z.object({

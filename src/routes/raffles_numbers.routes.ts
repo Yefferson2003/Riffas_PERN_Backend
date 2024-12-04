@@ -13,6 +13,12 @@ router.get('/:raffleId',
     raffleExists,
     raffleNumbersControllers.getRaffleNumbers
 )
+router.get('/:raffleId/exel',
+    authenticate,
+    validateIdParam('raffleId'),
+    raffleExists,
+    raffleNumbersControllers.getRaffleNumbersForExel
+)
 
 router.get('/:raffleId/number/:raffleNumberId',
     authenticate,

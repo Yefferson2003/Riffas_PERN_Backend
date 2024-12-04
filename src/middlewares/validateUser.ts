@@ -25,7 +25,10 @@ export const updateUserSchema = z.object({
     address: z
         .string()
         .min(5, "La dirección es obligatoria y debe tener al menos 5 caracteres")
-        .max(100, "La dirección no debe exceder 100 caracteres")
+        .max(100, "La dirección no debe exceder 100 caracteres"),
+    email: z
+        .string()
+        .email("Debe proporcionar un correo electrónico válido")
 })
 
 export const updatePasswordUserSchema = z.object({
@@ -35,8 +38,7 @@ export const updatePasswordUserSchema = z.object({
         .min(8, "La contraseña debe tener al menos 8 caracteres")
         .regex(/[A-Z]/, "La contraseña debe incluir al menos una letra mayúscula")
         .regex(/[a-z]/, "La contraseña debe incluir al menos una letra minúscula")
-        .regex(/\d/, "La contraseña debe incluir al menos un número")
-        .regex(/[^a-zA-Z0-9]/, "La contraseña debe incluir al menos un carácter especial"),
+        .regex(/\d/, "La contraseña debe incluir al menos un número"),
     confirmPassword: z.string()
 })
 .refine((data) => data.password === data.confirmPassword, {

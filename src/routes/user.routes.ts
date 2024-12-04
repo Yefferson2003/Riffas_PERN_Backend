@@ -12,6 +12,11 @@ router.get('/',
     checkRole(['admin']),
     userController.getUsers
 )
+router.get('/select',
+    authenticate,
+    checkRole(['admin', 'responsable']),
+    userController.getUsersBySelect
+)
 
 router.get('/:userId',
     authenticate,

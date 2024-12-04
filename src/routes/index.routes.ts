@@ -8,7 +8,7 @@ import paymentsRoutes from './payments.routes'
 const router = Router()
 
 router.use('/auth', authRoutes)
-router.use('/user', userRoutes)
+router.use('/users', userRoutes)
 router.use('/raffles', rifflesRoutes)
 router.use('/raffles-numbers', rifflesNumbersRoutes)
 router.use('/payments', paymentsRoutes)

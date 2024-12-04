@@ -32,7 +32,9 @@ class authController {
         const {firstName,lastName,identificationType, identificationNumber, phone, address, email, password, rolName} = req.body
         try {
             const rol = await Rol.findOne({
-                where: {name: rolName}
+                where: {
+                    name: rolName,
+                }
             })
 
             if (!rol) {
@@ -41,11 +43,18 @@ class authController {
                 return
             }
 
-            const userExist = await User.findOne({
-                where: {email}
+            const userIdentificationNumberExist = await User.findOne({
+                where: {
+                    identificationNumber
+                }
+            })
+            const userEmailExist = await User.findOne({
+                where: {
+                    email,
+                }
             })
 
-            if (userExist) {
+            if (userIdentificationNumberExist || userEmailExist) {
                 const error = new Error('Usuario ya creado');
                 res.status(409).json({error: error.message})
                 return
@@ -73,10 +82,10 @@ class authController {
     }
 
     static login = async (req: Request, res: Response) => {
-        const {email, password} = req.body 
+        const {identificationNumber, password} = req.body 
         try {
             const user = await User.findOne({
-                where: {email}
+                where: {identificationNumber}
             })
 
             if (!user) {

@@ -7,7 +7,11 @@ import { hashPassword } from '../utils/auth';
 class userController {
 
     static getUsers = async (req: Request, res: Response) => {
-        const {vendedor, responsable} = req.query
+        const {vendedor, responsable, page = 1, limit = 5} = req.query
+
+        let pageNumber = parseInt(page as string);
+        const limitNumber = parseInt(limit as string);
+        const offset = (pageNumber - 1) * limitNumber;
         try {
             let filter : any = {}
 
@@ -23,8 +27,9 @@ class userController {
                 filter.name = { [Op.ne]: 'admin' };
             }
 
-            const users = await User.findAll({
-                attributes: ['id', 'firstName','lastName', 'identificationType', 'identificationNumber', 'phone'],
+            const {count, rows: users} = await User.findAndCountAll({
+                distinct: true,
+                attributes: ['id', 'firstName','lastName', 'identificationType', 'identificationNumber', 'phone', 'email', 'address', 'createdAt'],
                 include: [
                     {
                         model: Rol,
@@ -32,9 +37,41 @@ class userController {
                         where: filter,
                         attributes: ['name']
                     }
-                ]
+                ],
+                limit: limitNumber,
+                offset,
+                order: [['id', 'DESC']],
             })
 
+            res.json({
+                total: count,
+                users,
+                totalPages: Math.ceil(count / limitNumber),
+                currentPage: pageNumber,
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
+    static getUsersBySelect = async (req: Request, res: Response) => {
+        try {
+            const users = await User.findAll({
+                attributes: ['id', 'firstName', 'lastName'],
+                include: [
+                    {
+                        model: Rol,
+                        as: 'rol',
+                        attributes: ['name'],
+                        where: {
+                            name: {
+                                [Op.ne]: 'admin'
+                            }
+                        }
+                    }
+                ]
+            })
             res.json(users)
         } catch (error) {
             console.log(error);
@@ -52,7 +89,7 @@ class userController {
     }
 
     static updateUser = async (req: Request, res: Response) => {
-        const {firstName, lastName, identificationType,identificationNumber, phone, address} = req.body
+        const {firstName, lastName, identificationType,identificationNumber, phone, address, email} = req.body
         try {
             await req.user.update({
                 firstName,
@@ -60,7 +97,8 @@ class userController {
                 identificationType,
                 identificationNumber,
                 phone,
-                address
+                address,
+                email
             })
             res.send('Usuario actualizado correctamente')
         } catch (error) {
