@@ -21,7 +21,11 @@ export const validateSchema = (schema: ZodSchema, target: "body" | "query" | "pa
     (req: Request, res: Response, next: NextFunction) => {
     const result = schema.safeParse(req[target]);
     if (!result.success) {
-        res.status(400).json({ errors: result.error.errors });
+        // Extraer el primer mensaje de error
+        const firstErrorMessage = result.error.errors[0].message;
+        
+        // Responder con un mensaje simple
+        res.status(400).send(firstErrorMessage);
         return;
     }
     next();
