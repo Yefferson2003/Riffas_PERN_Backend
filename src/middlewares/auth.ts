@@ -62,7 +62,7 @@ export const checkRole = (allowedRoles: string[]) => (req: Request, res: Respons
     const rol = req.user.dataValues.rol.dataValues.name
 
     if (!allowedRoles.includes(rol)) {
-        res.status(403).json({ message: 'No tienes permisos para esta acción' });
+        res.status(403).send({ errors: 'No tienes permisos para esta acción' });
         return 
     }
     next();

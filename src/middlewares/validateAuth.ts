@@ -25,11 +25,12 @@ export const validateSchema = (schema: ZodSchema, target: "body" | "query" | "pa
         const firstErrorMessage = result.error.errors[0].message;
         
         // Responder con un mensaje simple
-        res.status(400).send(firstErrorMessage);
+        res.status(400).json({error: firstErrorMessage});
         return;
     }
     next();
 };
+
 
 //VALIDAR AUTH
 export const createRolSchema = z.object({
