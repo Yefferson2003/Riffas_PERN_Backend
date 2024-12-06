@@ -74,7 +74,7 @@ class raffleNumbersControllers {
 
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
-                attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address'],
+                attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
                 limit: limitNumber,
                 offset,
                 order: [['number', 'ASC']],
@@ -226,8 +226,11 @@ class raffleNumbersControllers {
 
                 if (amountCompleto) { // termina abono
                     const existingPayment = await Payment.findOne({
-                        where: { riffleNumberId: req.raffleNumber.id },
-                        order: [['createdAt', 'ASC']], 
+                        where: { 
+                            riffleNumberId: req.raffleNumber.id,
+                            isValid: true
+                        },
+                        order: [['createdAt', 'DESC']], 
                     });
                 
                     if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
@@ -248,8 +251,11 @@ class raffleNumbersControllers {
                     })
                 } else { // continuar abono
                     const existingPayment = await Payment.findOne({
-                        where: { riffleNumberId: req.raffleNumber.id },
-                        order: [['createdAt', 'ASC']], 
+                        where: { 
+                            riffleNumberId: req.raffleNumber.id,
+                            isValid: true
+                        },
+                        order: [['createdAt', 'DESC']], 
                     });
                 
                     if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
@@ -409,7 +415,7 @@ class raffleNumbersControllers {
 
             const existingPayment = await Payment.findOne({
                 where: { riffleNumberId: req.raffleNumber.id },
-                order: [['createdAt', 'ASC']], 
+                order: [['createdAt', 'DESC']], 
             });
         
             if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
@@ -430,12 +436,12 @@ class raffleNumbersControllers {
                 paymentDue: req.raffle.dataValues.price
             })
 
-            // await Payment.update(
-            //     {isValid: false},
-            //     {where : {
-            //         riffleNumberId: req.raffleNumber.id
-            //     }},
-            // )
+            await Payment.update(
+                {isValid: false},
+                {where : {
+                    riffleNumberId: req.raffleNumber.id
+                }},
+            )
             req.app.get('io').emit('sellNumbers', {
                 raffleId: req.raffle.id
             }); 
