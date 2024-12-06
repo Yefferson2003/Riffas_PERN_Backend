@@ -4,6 +4,8 @@ import RaffleNumbers from '../models/raffle_numbers';
 import UserRifa from '../models/user_raffle';
 import User from '../models/user';
 import { Op } from 'sequelize';
+import Payment from '../models/payment';
+import sequelize from 'sequelize';
 
 class raffleController {
 
@@ -164,6 +166,27 @@ class raffleController {
         }
     }
 
+    static getRecaudo  = async (req : Request, res : Response) => {
+        try {
+            
+            const amountTotal = await RaffleNumbers.sum('paymentAmount',
+                {
+                    where: {
+                        raffleId: req.raffle.id,
+                        status: {
+                            [Op.ne]: 'available'
+                        }
+                    }
+                }
+            )
+
+            res.status(200).json({total: amountTotal})
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
     static assingUser = async (req : Request, res : Response) => {
         try {
 
@@ -190,7 +213,7 @@ class raffleController {
                 userId: req.user.id
             }); 
 
-            res.status(201).send('User assignado correctamente')
+            res.status(201).send('Usuario asignado correctamente')
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
@@ -219,6 +242,49 @@ class raffleController {
             }); 
 
             res.status(201).send('Asignación eliminada correctamente')
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+    static deleteRaffle = async (req : Request, res : Response) => {
+        try {
+
+            const raffleNumberIds = await RaffleNumbers.findAll({
+                attributes: ['id'], 
+                where: {
+                    raffleId: req.raffle.id
+                }
+            });
+
+            const ids = raffleNumberIds.map((raffleNumber) => raffleNumber.id);
+
+            if (ids.length > 0) { 
+                await Payment.destroy({
+                    where: {
+                        riffleNumberId: {
+                            [Op.in]: ids
+                        }
+                    }
+                });
+            }
+            await RaffleNumbers.destroy({
+                where: {
+                    raffleId: req.raffle.id
+                }
+            })
+
+            await UserRifa.destroy({
+                where: {
+                    rifaId: req.raffle.id
+                }
+            })
+
+            await req.raffle.destroy()
+
+            req.app.get('io').emit('deleteRaffle'); 
+
+            res.status(200).send('Rifa Elimina correctamente')
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})

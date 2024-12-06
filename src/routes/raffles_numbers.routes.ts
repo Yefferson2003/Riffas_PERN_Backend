@@ -54,7 +54,7 @@ router.post('/:raffleId/amount-number/:raffleNumberId',
 
 router.put('/:raffleId/update-number/:raffleNumberId',
     authenticate,
-    checkRole(['vendedor', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateIdParam('raffleId'),
     validateIdParam('raffleNumberId'),
     validateSchema(updateRaffleNumber),

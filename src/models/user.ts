@@ -35,7 +35,7 @@ class User extends Model{
     identificationNumber: string
 
     @Column({
-        type: DataType.STRING(10),
+        type: DataType.STRING(255),
         allowNull: false
     })
     phone: string

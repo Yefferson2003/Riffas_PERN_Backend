@@ -225,6 +225,15 @@ class raffleNumbersControllers {
                 const amountCompleto = amount === currentPaymentDue
 
                 if (amountCompleto) { // termina abono
+                    const existingPayment = await Payment.findOne({
+                        where: { riffleNumberId: req.raffleNumber.id },
+                        order: [['createdAt', 'ASC']], 
+                    });
+                
+                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+                        res.status(403).json({ error: "No puedes realizar un abono iniciado por otro usuario." });
+                        return
+                    }
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
@@ -238,6 +247,16 @@ class raffleNumbersControllers {
                         status: 'sold',
                     })
                 } else { // continuar abono
+                    const existingPayment = await Payment.findOne({
+                        where: { riffleNumberId: req.raffleNumber.id },
+                        order: [['createdAt', 'ASC']], 
+                    });
+                
+                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+                        res.status(403).json({ error: "No puedes realizar un abono iniciado por otro usuario." });
+                        return
+                    }
+                    
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
@@ -363,6 +382,16 @@ class raffleNumbersControllers {
     static updateRaffleNumber = async (req: Request, res: Response) => {
         const { phone, address} = req.body
         try {
+
+            const existingPayment = await Payment.findOne({
+                where: { riffleNumberId: req.raffleNumber.id },
+                order: [['createdAt', 'ASC']], 
+            });
+        
+            if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+                res.status(403).json({ error: "No puedes actualizar el numero apartado por otro usuario." });
+                return
+            }
             await req.raffleNumber.update({
                 phone,
                 address
@@ -377,6 +406,16 @@ class raffleNumbersControllers {
 
     static deleteClientRaffleNumber = async (req: Request, res: Response) => {
         try {
+
+            const existingPayment = await Payment.findOne({
+                where: { riffleNumberId: req.raffleNumber.id },
+                order: [['createdAt', 'ASC']], 
+            });
+        
+            if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+                res.status(403).json({ error: "No puedes eliminar un numero reservado por otro usuario." });
+                return
+            }
             
             await req.raffleNumber.update({
                 status: 'available',
@@ -391,11 +430,12 @@ class raffleNumbersControllers {
                 paymentDue: req.raffle.dataValues.price
             })
 
-            await Payment.destroy({
-                where : {
-                    riffleNumberId: req.raffleNumber.id
-                }
-            })
+            // await Payment.update(
+            //     {isValid: false},
+            //     {where : {
+            //         riffleNumberId: req.raffleNumber.id
+            //     }},
+            // )
             req.app.get('io').emit('sellNumbers', {
                 raffleId: req.raffle.id
             }); 

@@ -21,7 +21,7 @@ export const updateUserSchema = z.object({
         .max(20, "El número de identificación no debe exceder 20 dígitos"),
     phone: z
         .string()
-        .regex(/^\d{10}$/, "El teléfono debe ser un número válido de 10 dígitos"),
+        .min(1, "Teléfono obligatorio"),
     address: z
         .string()
         .min(5, "La dirección es obligatoria y debe tener al menos 5 caracteres")

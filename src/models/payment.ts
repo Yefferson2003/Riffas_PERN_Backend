@@ -1,4 +1,4 @@
-import { BelongsTo, Column, DataType, ForeignKey, Model, Table } from "sequelize-typescript";
+import { BelongsTo, Column, DataType, Default, ForeignKey, Model, Table } from "sequelize-typescript";
 import RaffleNumbers from "./raffle_numbers";
 import User from "./user";
 
@@ -32,6 +32,13 @@ class Payment extends Model {
         allowNull: false
     })
     userId: number
+
+    @Default(true)
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+    })
+    isValid: boolean
 
     @BelongsTo(() => RaffleNumbers)
     raffleNumber: RaffleNumbers

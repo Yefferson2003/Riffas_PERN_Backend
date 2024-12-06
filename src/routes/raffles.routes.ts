@@ -37,10 +37,16 @@ router.put('/:raffleId',
 
 router.get('/:raffleId/assing-user',
     authenticate,
-    checkRole(['admin']),
+    checkRole(['admin', 'responsable']),
     validateIdParam('raffleId'),
     raffleExists,
     raffleController.getUsersRaffle
+)
+router.get('/:raffleId/recaudo',
+    authenticate,
+    validateIdParam('raffleId'),
+    raffleExists,
+    raffleController.getRecaudo
 )
 
 router.post('/:raffleId/assing-user/:userId',
@@ -61,6 +67,14 @@ router.delete('/:raffleId/assing-user/:userId',
     raffleExists,
     userExists,
     raffleController.deleteAssingUser
+)
+
+router.delete('/:raffleId',
+    authenticate,
+    checkRole(['admin']),
+    validateIdParam('raffleId'),
+    raffleExists,
+    raffleController.deleteRaffle
 )
 
 export default router

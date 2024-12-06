@@ -55,7 +55,7 @@ class RaffleNumbers extends Model{
     lastName: string
 
     @Column({
-        type: DataType.STRING(10),
+        type: DataType.STRING(255),
         allowNull: true
     })
     phone: string
