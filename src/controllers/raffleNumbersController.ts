@@ -75,6 +75,13 @@ class raffleNumbersControllers {
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
+                include: [
+                    {
+                        model: Payment,
+                        as : 'payments',
+                        attributes: ['amount']
+                    }
+                ],
                 limit: limitNumber,
                 offset,
                 order: [['number', 'ASC']],
@@ -233,7 +240,7 @@ class raffleNumbersControllers {
                         order: [['createdAt', 'DESC']], 
                     });
                 
-                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id && req.user.dataValues.rol.dataValues.name === 'vendedor' ) {
                         res.status(403).json({ error: "No puedes realizar un abono iniciado por otro usuario." });
                         return
                     }
@@ -258,7 +265,7 @@ class raffleNumbersControllers {
                         order: [['createdAt', 'DESC']], 
                     });
                 
-                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id && req.user.dataValues.rol.dataValues.name === 'vendedor') {
                         res.status(403).json({ error: "No puedes realizar un abono iniciado por otro usuario." });
                         return
                     }

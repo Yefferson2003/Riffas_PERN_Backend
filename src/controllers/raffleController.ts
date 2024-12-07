@@ -168,19 +168,32 @@ class raffleController {
 
     static getRecaudo  = async (req : Request, res : Response) => {
         try {
-            
-            const amountTotal = await RaffleNumbers.sum('paymentAmount',
-                {
-                    where: {
-                        raffleId: req.raffle.id,
-                        status: {
-                            [Op.ne]: 'available'
-                        }
-                    }
-                }
-            )
 
-            res.status(200).json({total: amountTotal})
+            const raffleNumbers = await RaffleNumbers.findAll({
+                where: {
+                    raffleId: req.raffle.id 
+                },
+                attributes: ['id'],
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        attributes: ['amount'], 
+                        where: {
+                            amount: { [Op.gt]: 0 } 
+                        },
+                        required: true 
+                    }
+                ]
+            });
+
+            const totalAmount = raffleNumbers.reduce((total, raffle) => {
+                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
+                return total + raffleTotal;
+            }, 0);
+
+
+            res.status(200).json({total : totalAmount})
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})

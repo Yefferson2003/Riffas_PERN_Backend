@@ -11,15 +11,15 @@ router.get('/user',
 )
 
 router.post('/create-rol',
-    authenticate,
-    checkRole(['admin']),
+    // authenticate,
+    // checkRole(['admin']),
     validateSchema(createRolSchema),
     authController.creatRol
 )
 
 router.post('/create-user',
-    authenticate,
-    checkRole(['admin']),
+    // authenticate,
+    // checkRole(['admin']),
     validateSchema(createUserSchema),
     authController.createUser
 )
