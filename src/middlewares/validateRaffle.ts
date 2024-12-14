@@ -131,8 +131,8 @@ export const amountRaffleNumberSchema = z.object({
         .max(100, "La dirección no debe exceder 100 caracteres"),
     amount : z
         .number()
-        .int({ message: 'El valor debe ser un número entero.' }) // Asegura que sea entero
-        .gt(0, { message: 'El valor debe ser mayor que 0.' }),
+        .int({ message: 'El valor debe ser un número entero.' })
+        // .positive({ message: 'El valor debe ser mayor a cero.' })
 })
 
 export const validateRaffleNumbersStatus = async (req: Request, res: Response, next: NextFunction) => {

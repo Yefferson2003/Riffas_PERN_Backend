@@ -48,6 +48,13 @@ router.get('/:raffleId/recaudo',
     raffleExists,
     raffleController.getRecaudo
 )
+router.get('/:raffleId/recaudoByVendedor',
+    authenticate,
+    checkRole(['vendedor']),
+    validateIdParam('raffleId'),
+    raffleExists,
+    raffleController.getRecaudoByVendedor
+)
 
 router.post('/:raffleId/assing-user/:userId',
     authenticate,

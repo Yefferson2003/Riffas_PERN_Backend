@@ -43,6 +43,15 @@ class raffleNumbersControllers {
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status'],
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        attributes: ['userId', 'createdAt'], 
+                        separate: true, 
+                        order: [['createdAt', 'ASC']], 
+                    }
+                ],
                 limit: limitNumber,
                 offset,
                 order: [['number', 'ASC']],
@@ -126,6 +135,7 @@ class raffleNumbersControllers {
 
     static sellRaffleNumbers = async (req: Request, res: Response) => {
         const {raffleNumbersIds, identificationType, identificationNumber, firstName, lastName, phone, address} = req.body
+        const {separar} = req.query
         const fechaActual: Date = new Date();
         try {
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
@@ -134,36 +144,72 @@ class raffleNumbersControllers {
                 return
             }
 
-            const paymentsData = raffleNumbersIds.map((_, index: number) => ({
-                riffleNumberId: raffleNumbersIds[index],
-                amount: req.raffle.dataValues.price,
-                paidAt: fechaActual,
-                userId: req.user.id
-            }));
+            let paymentsData : any = [] 
+
+            if (!separar) {
+                paymentsData = raffleNumbersIds.map((_, index: number) => ({
+                    riffleNumberId: raffleNumbersIds[index],
+                    amount: req.raffle.dataValues.price,
+                    paidAt: fechaActual,
+                    userId: req.user.id
+                }));
+            } else {
+                paymentsData = raffleNumbersIds.map((_, index: number) => ({
+                    riffleNumberId: raffleNumbersIds[index],
+                    amount: 0,
+                    // paidAt: fechaActual,
+                    userId: req.user.id
+                }));
+            }
 
             const payments = await Payment.bulkCreate(paymentsData);
 
-            const [affectedRows, updatedInstances] = await RaffleNumbers.update(
-                {
-                    paymentAmount: req.raffle.dataValues.price,
-                    paymentDue: 0,
-                    status: 'sold',
-                    reservedDate: fechaActual,
-                    identificationType,
-                    identificationNumber,
-                    firstName,
-                    lastName,
-                    phone,
-                    address
-                },
-                {
-                    where: {
-                        id: raffleNumbersIds, 
+            if (!separar) {
+                const [affectedRows, updatedInstances] = await RaffleNumbers.update(
+                    {
+                        paymentAmount: req.raffle.dataValues.price,
+                        paymentDue: 0,
+                        status: 'sold',
+                        reservedDate: fechaActual,
+                        identificationType,
+                        identificationNumber,
+                        firstName,
+                        lastName,
+                        phone,
+                        address
                     },
-                    returning: true
-                }
-                
-            );
+                    {
+                        where: {
+                            id: raffleNumbersIds, 
+                        },
+                        returning: true
+                    }
+                    
+                );
+            }else {
+                const [affectedRows, updatedInstances] = await RaffleNumbers.update(
+                    {
+                        paymentAmount: 0,
+                        // paymentDue: 0,
+                        status: 'pending',
+                        reservedDate: fechaActual,
+                        identificationType,
+                        identificationNumber,
+                        firstName,
+                        lastName,
+                        phone,
+                        address
+                    },
+                    {
+                        where: {
+                            id: raffleNumbersIds, 
+                        },
+                        returning: true
+                    }
+                    
+                );
+            }
+            
 
             const raffleNumber = await RaffleNumbers.findAll({
                 where: { id: raffleNumbersIds },
@@ -195,6 +241,7 @@ class raffleNumbersControllers {
 
     static amountRaffleNumber = async (req: Request, res: Response) => {
         const {identificationType, identificationNumber, firstName, lastName, phone, address, amount} = req.body
+        const {descuento} = req.query
         const fechaActual: Date = new Date();
         try {
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
@@ -222,6 +269,11 @@ class raffleNumbersControllers {
                 const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
                 const currentPaymentDue = +req.raffleNumber.dataValues.paymentDue
 
+                if (amount <= 0) {
+                    const error = new Error('El valor debe ser mayor a cero.');
+                    res.status(422).json({ error: error.message });
+                    return;
+                }                
 
                 if (amount > currentPaymentDue) {
                     const error = new Error('El valor ingresado excede el valor de la deuda.');
@@ -313,7 +365,7 @@ class raffleNumbersControllers {
                 const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
                 const currentPaymentDue = +req.raffleNumber.dataValues.paymentDue
 
-                if (amountCompleto) {
+                if (amountCompleto && !descuento) {
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
@@ -333,7 +385,7 @@ class raffleNumbersControllers {
                         phone,
                         address
                     })
-                } else { // Abono
+                } else if (!amountCompleto && !descuento) { // Abono
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
@@ -344,6 +396,26 @@ class raffleNumbersControllers {
                     await req.raffleNumber.update({
                         paymentAmount: currentPaymentAmount + amount,
                         paymentDue: currentPaymentDue - amount,
+                        status: 'pending',
+                        reservedDate: fechaActual,
+                        identificationType,
+                        identificationNumber,
+                        firstName,
+                        lastName,
+                        phone,
+                        address
+                    })
+                } else if (descuento) {
+                    const payment = await Payment.create({
+                        riffleNumberId: req.raffleNumber.id,
+                        amount: 0,
+                        // paidAt: fechaActual,
+                        userId: req.user.id
+                    })
+
+                    await req.raffleNumber.update({
+                        paymentAmount: 0,
+                        paymentDue: amount,
                         status: 'pending',
                         reservedDate: fechaActual,
                         identificationType,
@@ -456,8 +528,20 @@ class raffleNumbersControllers {
             res.send('Rifa restablecida correctamente')
         } catch (error) {
             console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
+
+    // static cangeActivityRaffleNumber = async (req: Request, res: Response) => {
+    //     try {
+    //         req.raffleNumber.update({
+    //             isActive: !req.raffleNumber.dataValues.isActive
+    //         })
+    //     } catch (error) {
+    //         console.log(error);
+    //         res.status(500).json({error: 'Hubo un Error'})
+    //     }
+    // }
 }
 
 export default raffleNumbersControllers

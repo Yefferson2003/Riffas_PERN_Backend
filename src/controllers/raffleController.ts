@@ -6,6 +6,7 @@ import User from '../models/user';
 import { Op } from 'sequelize';
 import Payment from '../models/payment';
 import sequelize from 'sequelize';
+import { isValid } from 'zod';
 
 class raffleController {
 
@@ -169,6 +170,22 @@ class raffleController {
     static getRecaudo  = async (req : Request, res : Response) => {
         try {
 
+            const totalVendido = await RaffleNumbers.sum('paymentAmount', {
+                where: {
+                    raffleId: req.raffle.id ,
+                    paymentAmount: {
+                        [Op.gt]: 0, 
+                    },
+                },
+            });
+
+            const TotalCobrar = await RaffleNumbers.sum('paymentDue', {
+                where: {
+                    raffleId: req.raffle.id ,
+                    status: 'pending'
+                },
+            });
+
             const raffleNumbers = await RaffleNumbers.findAll({
                 where: {
                     raffleId: req.raffle.id 
@@ -187,18 +204,157 @@ class raffleController {
                 ]
             });
 
-            const totalAmount = raffleNumbers.reduce((total, raffle) => {
+            const totalAmount : number = raffleNumbers.reduce((total, raffle) => {
                 const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
                 return total + raffleTotal;
             }, 0);
 
 
-            res.status(200).json({total : totalAmount})
+            res.status(200).json({
+                totalRecaudado : totalAmount,
+                totalVendido,
+                TotalCancelPays: totalAmount - totalVendido,
+                TotalCobrar
+            })
+
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
         }
     }
+
+    static getRecaudoByVendedor = async (req: Request, res: Response) => {
+        try {
+            // Total recaudado
+            const raffleNumbersTotalRecaudado = await RaffleNumbers.findAll({
+                where: {
+                    raffleId: req.raffle.id
+                },
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        attributes: ['amount'],
+                        where: {
+                            amount: { [Op.gt]: 0 },
+                            userId: req.user.id
+                        },
+                        required: true
+                    }
+                ]
+            });
+    
+            // Total de rifas
+            const totalRaffleNumberSold = await RaffleNumbers.count({
+                distinct: true,
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'sold'
+                },
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        where: {
+                            // amount: { [Op.gt]: 0 },
+                            userId: req.user.id,
+                            isValid: true
+                        },
+                        required: true
+                    }
+                ]
+            });
+            const totalRaffleNumberAmount = await RaffleNumbers.count({
+                distinct: true,
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'pending'
+                },
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        where: {
+                            // amount: { [Op.gt]: 0 },
+                            userId: req.user.id,
+                            isValid: true
+                        },
+                        required: true
+                    }
+                ]
+            });
+    
+            // Total cancelado
+            const raffleNumbersTotalCancelado = await RaffleNumbers.findAll({
+                where: {
+                    raffleId: req.raffle.id
+                },
+                attributes: [],
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        attributes: ['amount'],
+                        where: {
+                            amount: { [Op.gt]: 0 },
+                            userId: req.user.id,
+                            isValid: false
+                        },
+                        required: true
+                    }
+                ]
+            });
+    
+            const totalRecaudado: number = raffleNumbersTotalRecaudado.reduce((total, raffle) => {
+                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
+                return total + raffleTotal;
+            }, 0);
+    
+            const totalCancelado: number = raffleNumbersTotalCancelado.reduce((total, raffle) => {
+                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
+                return total + raffleTotal;
+            }, 0);
+    
+            // Total a cobrar
+            const raffleNumberTotalCobrar = await RaffleNumbers.findAll({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'pending'
+                },
+                attributes: ['paymentDue'],
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        attributes: [],
+                        where: {
+                            // amount: { [Op.gt]: 0 },
+                            userId: req.user.id,
+                            isValid: true
+                        },
+                        required: true
+                    }
+                ]
+            });
+    
+            const totalCobrar: number = raffleNumberTotalCobrar.reduce((total, raffle) => {
+                const raffleTotal = +raffle.dataValues.paymentDue;
+                return total + raffleTotal;
+            }, 0);
+    
+            res.status(200).json({
+                totalRecaudado,
+                totalCancelado,
+                totalRaffleNumber: [totalRaffleNumberSold, totalRaffleNumberAmount],
+                totalCobrar
+            });
+    
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Hubo un Error' });
+        }
+    };
+    
 
     static assingUser = async (req : Request, res : Response) => {
         try {
