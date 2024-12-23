@@ -81,20 +81,30 @@ class raffleNumbersControllers {
 
             filter.raffleId = req.raffle.id
 
-            const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
+            const { count, rows: raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
                 include: [
                     {
                         model: Payment,
-                        as : 'payments',
-                        attributes: ['amount']
+                        as: 'payments',
+                        attributes: ['amount', 'isValid', 'createdAt'], // Asegúrate de incluir el campo de fecha
+                        include: [
+                            {
+                                model: User,
+                                as: 'user',
+                                attributes: ['firstName', 'lastName', 'identificationNumber']
+                            }
+                        ],
+                        order: [['createdAt', 'ASC']], // Orden por fecha ascendente (más vieja al inicio)
+                        separate: true, // Hace la consulta separada solo para los pagos
                     }
                 ],
                 limit: limitNumber,
                 offset,
                 order: [['number', 'ASC']],
-            })
+            });
+            
 
             res.json({
                 total: count,
