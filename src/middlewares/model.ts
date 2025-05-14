@@ -4,17 +4,21 @@ import Rol from "../models/rol";
 import { Op } from "sequelize";
 import Raffle from "../models/raffle";
 import RaffleNumbers from "../models/raffle_numbers";
+import Expenses from "../models/expenses";
+import Awards from "../models/awards";
 
 declare global { 
     namespace Express {
         interface Request {
             raffle: Raffle
             raffleNumber: RaffleNumbers
+            expense: Expenses
+            award: Awards
         }
     }
 }
 
-const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers) {
+const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards) {
     if (!model) {
         const error = new Error('Elemento no Encontrado')
         res.status(404).json({error: error.message})
@@ -50,7 +54,7 @@ export async function raffleExists(req:Request, res:Response, next:NextFunction)
     const {raffleId} = req.params
     try {
         const raffle = await Raffle.findByPk(raffleId, {
-            attributes: ['id', 'price', 'startDate', 'editDate', 'price'],
+            attributes: ['id', 'price','name', 'startDate', 'editDate', 'description', 'playDate'],
         })
         if (!elementExists(res, raffle)) return
         req.raffle = raffle
@@ -75,3 +79,38 @@ export async function raffleNumberExists(req:Request, res:Response, next:NextFun
         res.status(500).json({error: 'Hubo un Error - models'})
     }
 }
+
+export async function ExpensesExists(req:Request, res:Response, next:NextFunction) {
+    const {raffleId, expenseId} = req.params
+    try {
+        const expense = await Expenses.findOne({
+            where: {
+                id: expenseId,
+                raffleId: raffleId
+            }
+        })
+        if (!elementExists(res, expense)) return
+        req.expense = expense
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+
+export async function awardExists(req:Request, res:Response, next:NextFunction) {
+    const {raffleId, awardId} = req.params
+    try {
+        const award = await Awards.findOne({
+            where: {
+                id: awardId,
+                raffleId: raffleId
+            }
+        })
+        if (!elementExists(res, award)) return
+        req.award = award
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+

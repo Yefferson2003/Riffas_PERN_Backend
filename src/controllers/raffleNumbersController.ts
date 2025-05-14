@@ -1,9 +1,26 @@
 import { Request, Response } from 'express';
+import { Op } from 'sequelize';
 import Payment from '../models/payment';
 import RaffleNumbers from '../models/raffle_numbers';
+import Rol from '../models/rol';
 import User from '../models/user';
-import { Op } from 'sequelize';
 
+export function formatPostgresDateToReadable(dateString: string): string {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) {
+        throw new Error('Invalid date format');
+    }
+    const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true,
+    };
+    return date.toLocaleDateString('es-UY', options);
+}
 
 class raffleNumbersControllers {
 
@@ -294,18 +311,39 @@ class raffleNumbersControllers {
                 const amountCompleto = amount === currentPaymentDue
 
                 if (amountCompleto) { // termina abono
-                    const existingPayment = await Payment.findOne({
+                    const existingPayments = await Payment.findAll({
                         where: { 
                             riffleNumberId: req.raffleNumber.id,
                             isValid: true
                         },
+                        include: [
+                            {
+                                model: User,
+                                as: 'user',
+                                attributes: ['id'],
+                                include: [
+                                    {
+                                        model: Rol,
+                                        as: 'rol',
+                                    }
+                                ]
+                            }
+                        ],
                         order: [['createdAt', 'DESC']], 
                     });
-                
-                    if (existingPayment && existingPayment.dataValues.userId !== req.user.id && req.user.dataValues.rol.dataValues.name === 'vendedor' ) {
-                        res.status(403).json({ error: "No puedes realizar un abono iniciado por otro usuario." });
-                        return
+                    
+                    const isDifferentSeller = existingPayments.some(payment => 
+                        payment.dataValues.user.id !== req.user.id 
+                        && payment.dataValues.user.dataValues.rol.dataValues.name === 'vendedor'
+                    );
+
+
+                    if (isDifferentSeller && req.user.dataValues.rol.dataValues.name === 'vendedor') {
+                        res.status(403).json({ error: "No puedes realizar un abono iniciado por otro vendedor." });
+                        return;
                     }
+                    
+                    
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,

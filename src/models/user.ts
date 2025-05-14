@@ -1,8 +1,8 @@
 import { BelongsTo, Column, DataType, Default, ForeignKey, HasMany, Model, Table } from "sequelize-typescript";
-import Rol from "./rol";
-import { identificationTypeEnum } from "./raffle_numbers";
-import UserRifa from "./user_raffle";
+import Expenses from "./expenses";
 import Payment from "./payment";
+import Rol from "./rol";
+import UserRifa from "./user_raffle";
 
 @Table({
     tableName: 'users'
@@ -77,6 +77,9 @@ class User extends Model{
         hooks: true
     })
     userRiffle: UserRifa[]
+
+    @HasMany(() => Expenses)
+    expenses: Expenses[]
 }
 
 export default User

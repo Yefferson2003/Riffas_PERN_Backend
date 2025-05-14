@@ -1,6 +1,8 @@
 import { Column, DataType, Default, HasMany, Model, Table } from "sequelize-typescript";
 import RaffleNumbers from "./raffle_numbers";
 import UserRifa from "./user_raffle";
+import Awards from "./awards";
+import Expenses from "./expenses";
 
 export const rifflesStatusEnum = ['finally', 'pendig', 'cancel'] as const;
 
@@ -64,11 +66,25 @@ class Raffle extends Model {
     })
     banerImgUrl: string
 
+    @Default('https://res.cloudinary.com/dkqd7yggo/image/upload/v1733066711/cfxhlnkol71lyfpp8amy.jpg')
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true
+    })
+    banerMovileImgUrl: string
+
     @HasMany(() => RaffleNumbers)
     raffleNumbers: RaffleNumbers[]
 
     @HasMany(() => UserRifa)
     userRiffle: UserRifa[]
+
+    @HasMany(() => Awards)
+    awards: Awards[]
+
+    @HasMany(() => Expenses)
+    expenses: Expenses[]
+    
 }
 
 export default Raffle

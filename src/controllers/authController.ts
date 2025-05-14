@@ -11,7 +11,7 @@ class authController {
             res.json(req.user)
         } catch (error) {
             console.log(error);
-            res.status(500).json({error: 'Hubo un Error'})
+            res.status(500).json({errors: 'Hubo un Error'})
         }
     }
 
@@ -24,7 +24,7 @@ class authController {
             res.status(201).send('Rol creado correctamente')
         } catch (error) {
             console.log(error);
-            res.status(500).json({error: 'Hubo un Error'})
+            res.status(500).json({errors: 'Hubo un Error'})
         }
     } 
 
@@ -84,13 +84,15 @@ class authController {
     static login = async (req: Request, res: Response) => {
         const {identificationNumber, password} = req.body 
         try {
+            console.log('hola');
+            
             const user = await User.findOne({
                 where: {identificationNumber}
             })
 
             if (!user) {
                 const error = new Error('Usuario no encontrado')
-                res.status(404).json({error: error.message})
+                res.status(404).json({errors: error.message})
                 return
             }
 
@@ -98,7 +100,7 @@ class authController {
             
             if (!isPasswordCorrect) {
                 const error = new Error('Password incorrecta')
-                res.status(401).json({error: error.message})
+                res.status(401).json({errors: error.message})
                 return
             }
 
@@ -107,7 +109,7 @@ class authController {
             res.send(token)
         } catch (error) {
             console.log(error);
-            res.status(500).json({error: 'Hubo un Error'})
+            res.status(500).json({errors: 'Hubo un Error'})
         }
     }
 }

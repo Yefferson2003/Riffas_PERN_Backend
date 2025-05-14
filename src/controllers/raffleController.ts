@@ -38,7 +38,7 @@ class raffleController {
 
             const { count, rows: raffles} = await Raffle.findAndCountAll({
                 distinct: true,
-                attributes: ['id', 'name', 'description', 'startDate', 'playDate', 'editDate', 'price', 'banerImgUrl', 'nitResponsable', 'nameResponsable'],
+                attributes: ['id', 'name', 'description', 'startDate', 'playDate', 'editDate', 'price', 'banerImgUrl', 'nitResponsable', 'nameResponsable', 'banerMovileImgUrl'],
                 where: filter,
                 ...(isUser ? { 
                     include: [
@@ -90,7 +90,7 @@ class raffleController {
     }
 
     static createRaffle = async (req : Request, res : Response) => {
-        const {name, nitResponsable, nameResponsable, description, startDate, playDate, price, banerImgUrl, quantity = 1000} = req.body
+        const {name, nitResponsable, nameResponsable, description, startDate, playDate, price, banerImgUrl, quantity = 1000, banerMovileImgUrl} = req.body
         try {
 
             const editDate = new Date(playDate); 
@@ -105,7 +105,8 @@ class raffleController {
                 playDate,
                 editDate,
                 price,
-                banerImgUrl
+                banerImgUrl,
+                banerMovileImgUrl
             })
 
             const numbers = Array.from({ length: quantity }, (_, i) => ({
@@ -125,7 +126,7 @@ class raffleController {
     } 
 
     static updateRaffle = async (req : Request, res : Response) => {
-        const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate} = req.body
+        const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate, banerMovileImgUrl} = req.body
         try {
             await req.raffle.update({
                 name,
@@ -135,7 +136,8 @@ class raffleController {
                 nameResponsable,
                 startDate,
                 playDate,
-                editDate
+                editDate,
+                banerMovileImgUrl
             })
             res.send('Rifa actualizada correctamente')
         } catch (error) {
@@ -211,10 +213,10 @@ class raffleController {
 
 
             res.status(200).json({
-                totalRecaudado : totalAmount,
-                totalVendido,
-                TotalCancelPays: totalAmount - totalVendido,
-                TotalCobrar
+                totalRecaudado : totalAmount | 0,
+                totalVendido: totalVendido | 0,
+                TotalCancelPays: totalAmount - totalVendido | 0,
+                TotalCobrar: TotalCobrar | 0
             })
 
         } catch (error) {
@@ -343,10 +345,10 @@ class raffleController {
             }, 0);
     
             res.status(200).json({
-                totalRecaudado,
-                totalCancelado,
+                totalRecaudado: totalRecaudado | 0,
+                totalCancelado: totalCancelado | 0,
                 totalRaffleNumber: [totalRaffleNumberSold, totalRaffleNumberAmount],
-                totalCobrar
+                totalCobrar: totalCobrar | 0
             });
     
         } catch (error) {
