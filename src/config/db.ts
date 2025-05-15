@@ -1,13 +1,11 @@
 import { Sequelize} from 'sequelize-typescript'
 import dotenv from 'dotenv';
-
 dotenv.config();
 
 const db = new Sequelize(process.env.DATABASE_URL!, {
     logging: false,
     models: [__dirname + '/../models/**/*']
 }); 
-
 
 async function connectDB() {
     try {
