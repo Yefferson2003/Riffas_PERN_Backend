@@ -131,7 +131,7 @@ router.get('/:raffleId/expenses/:expenseId',
 
 router.post('/:raffleId/expenses',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateIdParam('raffleId'),
     raffleExists,
     validateSchema(expenseSchema),
