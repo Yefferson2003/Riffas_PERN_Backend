@@ -14,8 +14,6 @@ async function connectDB() {
         await db.authenticate();
         await db.sync()
         console.log('Conexión exitosa a la base de datos');
-
-        // await initializeData();
     } catch (error) {
         console.log(error);
         console.log('Hubo un error en la conexión de la DB');
