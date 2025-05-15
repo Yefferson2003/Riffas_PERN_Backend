@@ -6,3 +6,5 @@ node_modules/
 
 # Otros archivos que deseas ignorar
 dist/
+
+src/config/initializeData.ts

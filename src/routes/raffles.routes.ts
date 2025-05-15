@@ -95,6 +95,13 @@ router.get('/:raffleId/expenses-total',
     raffleExists,
     ExpenseController.getTotalExpenses
 )
+router.get('/:raffleId/expenses-total-user',
+    authenticate,
+    checkRole([ 'responsable', 'vendedor']),
+    validateIdParam('raffleId'),
+    raffleExists,
+    ExpenseController.getTotalExpensesByUser
+)
 
 router.get('/:raffleId/expenses-by-raffle',
     authenticate,

@@ -22,6 +22,25 @@ class ExpenseController {
         }
     }
 
+    static async getTotalExpensesByUser(req: Request, res: Response){
+        const {raffleId } = req.params;
+        try {
+            
+            const total = await Expenses.sum('amount', {
+                where: {
+                    raffleId: raffleId,
+                    userId: req.user.id
+                }
+            });
+
+            res.json({total : total || 0})
+
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({errors: 'Hubo un Error'})
+        }
+    }
+
     static async getAllExpenses(req: Request, res: Response){
         const {page = 1, limit = 10} = req.query
         const {raffleId } = req.params;
