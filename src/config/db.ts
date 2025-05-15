@@ -1,6 +1,5 @@
 import { Sequelize} from 'sequelize-typescript'
 import dotenv from 'dotenv';
-import { initializeData } from './initializeData';
 
 dotenv.config();
 
