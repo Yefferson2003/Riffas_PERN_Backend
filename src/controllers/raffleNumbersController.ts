@@ -25,7 +25,7 @@ export function formatPostgresDateToReadable(dateString: string): string {
 class raffleNumbersControllers {
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, available, sold, pending, page = 1, limit = 100} = req.query
+        const {search, amount, available, sold, pending, page = 1, limit = 100} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -49,12 +49,14 @@ class raffleNumbersControllers {
 
             if (search) {
                 filter[Op.or] = [
-                    // { firstName: { [Op.like]: `%${search}%` } }, 
-                    // { lastName: { [Op.like]: `%${search}%` } },  
                     { identificationNumber:  { [Op.eq]: search }},
-                    // { phone: { [Op.eq]: search }}, 
                     { number: { [Op.eq]: +search } }, 
                 ];
+            }
+
+            // Filtro por monto/deuda (paymentDue)
+            if (amount && !isNaN(Number(amount))) {
+                filter.paymentAmount = { [Op.lte]: Number(amount) };
             }
 
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
@@ -79,6 +81,55 @@ class raffleNumbersControllers {
                 raffleNumbers,
                 totalPages: Math.ceil(count / limitNumber),
                 currentPage: pageNumber,
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+    
+    static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
+        const {search, amount, available, sold, pending} = req.query
+
+        try {
+
+            const filter : any = {}
+
+            if (available && !sold && !pending) {
+                filter.status = 'available'
+            }
+            if (!available && sold && !pending) {
+                filter.status = 'sold'
+            }
+            if (!available && !sold && pending) {
+                filter.status = 'pending'
+            }
+
+            filter.raffleId = req.raffle.id
+
+            if (search) {
+                filter[Op.or] = [
+                    { identificationNumber:  { [Op.eq]: search }},
+                    { number: { [Op.eq]: +search } }, 
+                ];
+            }
+
+            // Filtro por monto/deuda (paymentDue)
+            if (amount && !isNaN(Number(amount))) {
+                filter.paymentAmount = { [Op.lte]: Number(amount) };
+            }
+
+            const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
+                where: filter,
+                attributes: ['id', 'number', 'status', 'paymentAmount', 'paymentDue', 'phone', 'firstName', 'lastName'],
+                order: [['number', 'ASC']],
+            })
+
+            res.json({
+                userName: req.user.dataValues.firstName,
+                userLastName: req.user.dataValues.lastName,
+                rafflePrice: req.raffle.dataValues.price,
+                raffleNumbers,
             });
         } catch (error) {
             console.log(error);
