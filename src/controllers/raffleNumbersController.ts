@@ -130,6 +130,7 @@ class raffleNumbersControllers {
                 userLastName: req.user.dataValues.lastName,
                 rafflePrice: req.raffle.dataValues.price,
                 raffleNumbers,
+                count
             });
         } catch (error) {
             console.log(error);
