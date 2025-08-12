@@ -84,7 +84,7 @@ class authController {
     static login = async (req: Request, res: Response) => {
         const {identificationNumber, password} = req.body 
         try {
-            console.log('hola');
+            
             
             const user = await User.findOne({
                 where: {identificationNumber}
