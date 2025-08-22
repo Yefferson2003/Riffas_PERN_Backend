@@ -71,7 +71,8 @@ class authController {
                 address,
                 email,
                 password: hashedPassword,
-                rolId: rol.id
+                rolId: rol.id,
+                createdBy: req.user.id
             })
 
             res.status(201).send('Usuario creado correctamente')
@@ -85,22 +86,27 @@ class authController {
         const {identificationNumber, password} = req.body 
         try {
             
-            
             const user = await User.findOne({
                 where: {identificationNumber}
             })
 
             if (!user) {
                 const error = new Error('Usuario no encontrado')
-                res.status(404).json({errors: error.message})
+                res.status(404).json({error: error.message})
                 return
+            }
+
+            if (user.dataValues.isActive === false) {
+                const error = new Error('Cuenta desactivada. Contacte con un administrador.')
+                res.status(403).json({ error: error.message });
+                return;
             }
 
             const isPasswordCorrect = await checkPassword(password, user.dataValues.password)
             
             if (!isPasswordCorrect) {
                 const error = new Error('Password incorrecta')
-                res.status(401).json({errors: error.message})
+                res.status(401).json({error: error.message})
                 return
             }
 

@@ -1,12 +1,10 @@
-import {Response, Request} from 'express'
-import Raffle from '../models/raffle';
-import RaffleNumbers from '../models/raffle_numbers';
-import UserRifa from '../models/user_raffle';
-import User from '../models/user';
+import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import Payment from '../models/payment';
-import sequelize from 'sequelize';
-import { isValid } from 'zod';
+import Raffle from '../models/raffle';
+import RaffleNumbers from '../models/raffle_numbers';
+import User from '../models/user';
+import UserRifa from '../models/user_raffle';
 
 class raffleController {
 
@@ -109,6 +107,27 @@ class raffleController {
                 banerMovileImgUrl
             })
 
+            if (req.user.dataValues.rol.dataValues.name === 'responsable') {
+                const userRaffleExist = await UserRifa.findOne({
+                    where: {
+                        userId: req.user.id,
+                        rifaId: raffle.id,
+                    }
+                })
+
+                if (userRaffleExist) {
+                    const error = new Error('Assignacion ya creada')
+                    res.status(409).json({error: error.message})
+                    return
+                }
+
+                const userRaffle = await UserRifa.create({
+                    userId: req.user.id,
+                    rifaId: raffle.id,
+                    role: req.user.dataValues.rol.dataValues.name
+                })
+            }
+
             const numbers = Array.from({ length: quantity }, (_, i) => ({
                 raffleId: raffle.id,
                 number: i,
@@ -170,6 +189,7 @@ class raffleController {
     }
 
     static getRecaudo  = async (req : Request, res : Response) => {
+        console.log('test inicio 2');
         try {
 
             const totalVendido = await RaffleNumbers.sum('paymentAmount', {
@@ -206,10 +226,15 @@ class raffleController {
                 ]
             });
 
+            
+
             const totalAmount : number = raffleNumbers.reduce((total, raffle) => {
-                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
+                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0) || 0
                 return total + raffleTotal;
             }, 0);
+
+            console.log('test inicio 2 -finalizado');
+
 
 
             res.status(200).json({
@@ -306,14 +331,15 @@ class raffleController {
                     }
                 ]
             });
-    
+
+
             const totalRecaudado: number = raffleNumbersTotalRecaudado.reduce((total, raffle) => {
-                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
+                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0) || 0;
                 return total + raffleTotal;
             }, 0);
     
             const totalCancelado: number = raffleNumbersTotalCancelado.reduce((total, raffle) => {
-                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0);
+                const raffleTotal = raffle.dataValues.payments.reduce((sum, payment) => sum + parseFloat(payment.dataValues.amount.toString()), 0) || 0;
                 return total + raffleTotal;
             }, 0);
     
@@ -340,9 +366,11 @@ class raffleController {
             });
     
             const totalCobrar: number = raffleNumberTotalCobrar.reduce((total, raffle) => {
-                const raffleTotal = +raffle.dataValues.paymentDue;
+                const raffleTotal = +raffle.dataValues.paymentDue || 0;
                 return total + raffleTotal;
             }, 0);
+
+            
     
             res.status(200).json({
                 totalRecaudado: totalRecaudado | 0,

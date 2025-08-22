@@ -19,7 +19,7 @@ router.post('/create-rol',
 
 router.post('/create-user',
     authenticate,
-    checkRole(['admin']),
+    checkRole(['admin', 'responsable']),
     validateSchema(createUserSchema),
     authController.createUser
 )

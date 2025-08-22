@@ -45,3 +45,9 @@ export const updatePasswordUserSchema = z.object({
     message: "Las contraseñas no coinciden",
     path: ["confirmPassword"],
 });
+
+export const updateIsActiveUserSchema = z.object({
+    userId: z
+        .number()
+        .min(1, "Id obligatorio")
+})

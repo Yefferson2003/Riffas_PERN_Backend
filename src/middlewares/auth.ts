@@ -46,6 +46,11 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
             res.status(401).json({ error: 'Usuario no encontrado' });
             return 
         }
+        
+        if (user.dataValues.isActive === false) {
+            res.status(403).json({ error: 'Cuenta desactivada. Contacte con un administrador.' });
+            return;
+        }
 
         req.user = user;
 

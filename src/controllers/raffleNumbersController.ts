@@ -217,6 +217,13 @@ class raffleNumbersControllers {
         const {separar} = req.query
         const fechaActual: Date = new Date();
         try {
+
+            if (!Array.isArray(raffleNumbersIds) || raffleNumbersIds.length === 0) {
+                res.status(400).json({ error: 'Los IDs de las rifas son requeridos y deben ser un arreglo' });
+                return 
+            }
+
+
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
                 const error = new Error('Fuera del rango de fechas permitido');
                 res.status(400).json({error: error.message});
@@ -225,21 +232,14 @@ class raffleNumbersControllers {
 
             let paymentsData : any = [] 
 
-            if (!separar) {
-                paymentsData = raffleNumbersIds.map((_, index: number) => ({
-                    riffleNumberId: raffleNumbersIds[index],
-                    amount: req.raffle.dataValues.price,
-                    paidAt: fechaActual,
-                    userId: req.user.id
-                }));
-            } else {
-                paymentsData = raffleNumbersIds.map((_, index: number) => ({
-                    riffleNumberId: raffleNumbersIds[index],
-                    amount: 0,
-                    // paidAt: fechaActual,
-                    userId: req.user.id
-                }));
-            }
+
+            paymentsData = raffleNumbersIds.map((id) => ({
+                riffleNumberId: id,
+                amount: separar ? 0 : req.raffle.dataValues.price,
+                paidAt: separar ? undefined : fechaActual,
+                userId: req.user.id
+            }));
+
 
             const payments = await Payment.bulkCreate(paymentsData);
 

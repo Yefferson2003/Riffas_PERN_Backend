@@ -59,6 +59,21 @@ class User extends Model{
     })
     password: string
 
+    @Default(true)
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: true
+        
+    })
+    isActive: boolean
+
+    @Default(0)
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true
+    })
+    createdBy: number
+
     @ForeignKey(() => Rol)
     @Column({
         type: DataType.INTEGER,
