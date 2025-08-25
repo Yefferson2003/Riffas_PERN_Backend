@@ -449,6 +449,23 @@ class raffleController {
     static deleteRaffle = async (req : Request, res : Response) => {
         try {
 
+            if (req.user.dataValues.rol.dataValues.name === "responsable") {
+                const asignacionExist = await UserRifa.findOne({
+                    where: {
+                        userId: req.user.id,
+                        rifaId: req.raffle.id,
+                    },
+                });
+
+                if (!asignacionExist) {
+                    res.status(403).json({
+                        error: "No tienes permiso para realizar esta acción",
+                    });
+                    return
+                }
+            }
+
+
             const raffleNumberIds = await RaffleNumbers.findAll({
                 attributes: ['id'], 
                 where: {

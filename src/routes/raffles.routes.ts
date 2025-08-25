@@ -82,7 +82,7 @@ router.delete('/:raffleId/assing-user/:userId',
 
 router.delete('/:raffleId',
     authenticate,
-    checkRole(['admin']),
+    checkRole(['admin', 'responsable']),
     validateIdParam('raffleId'),
     raffleExists,
     raffleController.deleteRaffle
