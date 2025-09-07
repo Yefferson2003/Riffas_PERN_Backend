@@ -88,14 +88,14 @@ export const sellRaffleNumbersSchema = z.object({
         .string()
         .min(1, "El apellido es obligatorio")
         .max(50, "El apellido no debe exceder 50 caracteres"),
-    identificationType: z.enum(identificationTypeEnum, {
-        required_error: "El tipo de identificación es obligatorio",
-    }),
-    identificationNumber: z
-        .string()
-        .regex(/^\d+$/, "El número de identificación debe contener solo dígitos")
-        .min(6, "El número de identificación debe tener al menos 6 dígitos")
-        .max(20, "El número de identificación no debe exceder 20 dígitos"),
+    // identificationType: z.enum(identificationTypeEnum, {
+    //     required_error: "El tipo de identificación es obligatorio",
+    // }),
+    // identificationNumber: z
+    //     .string()
+    //     .regex(/^\d+$/, "El número de identificación debe contener solo dígitos")
+    //     .min(6, "El número de identificación debe tener al menos 6 dígitos")
+    //     .max(20, "El número de identificación no debe exceder 20 dígitos"),
     phone: z
         .string()
         .min(1, "Teléfono obligatorio"),
@@ -114,14 +114,14 @@ export const amountRaffleNumberSchema = z.object({
         .string()
         .min(1, "El apellido es obligatorio")
         .max(50, "El apellido no debe exceder 50 caracteres"),
-    identificationType: z.enum(identificationTypeEnum, {
-        required_error: "El tipo de identificación es obligatorio",
-    }),
-    identificationNumber: z
-        .string()
-        .regex(/^\d+$/, "El número de identificación debe contener solo dígitos")
-        .min(6, "El número de identificación debe tener al menos 6 dígitos")
-        .max(20, "El número de identificación no debe exceder 20 dígitos"),
+    // identificationType: z.enum(identificationTypeEnum, {
+    //     required_error: "El tipo de identificación es obligatorio",
+    // }),
+    // identificationNumber: z
+    //     .string()
+    //     .regex(/^\d+$/, "El número de identificación debe contener solo dígitos")
+    //     .min(6, "El número de identificación debe tener al menos 6 dígitos")
+    //     .max(20, "El número de identificación no debe exceder 20 dígitos"),
     phone: z
         .string()
         .min(1, "Teléfono obligatorio"),

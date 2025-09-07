@@ -30,17 +30,17 @@ class RaffleNumbers extends Model{
     })
     status: string
 
-    @Column({
-        type: DataType.ENUM(...identificationTypeEnum),
-        allowNull: true
-    })
-    identificationType: string
+    // @Column({
+    //     type: DataType.ENUM(...identificationTypeEnum),
+    //     allowNull: true
+    // })
+    // identificationType: string
 
-    @Column({
-        type: DataType.STRING,
-        allowNull: true,
-    })
-    identificationNumber: string
+    // @Column({
+    //     type: DataType.STRING,
+    //     allowNull: true,
+    // })
+    // identificationNumber: string
 
     @Column({
         type: DataType.STRING,

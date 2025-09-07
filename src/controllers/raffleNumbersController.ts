@@ -152,7 +152,7 @@ class raffleNumbersControllers {
 
             const { count, rows: raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
-                attributes: ['id', 'number', 'status', 'reservedDate', 'identificationType', 'identificationNumber', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
+                attributes: ['id', 'number', 'status', 'reservedDate', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
                 include: [
                     {
                         model: Payment,
@@ -213,7 +213,7 @@ class raffleNumbersControllers {
     }
 
     static sellRaffleNumbers = async (req: Request, res: Response) => {
-        const {raffleNumbersIds, identificationType, identificationNumber, firstName, lastName, phone, address} = req.body
+        const {raffleNumbersIds, firstName, lastName, phone, address} = req.body
         const {separar} = req.query
         const fechaActual: Date = new Date();
         try {
@@ -250,8 +250,6 @@ class raffleNumbersControllers {
                         paymentDue: 0,
                         status: 'sold',
                         reservedDate: fechaActual,
-                        identificationType,
-                        identificationNumber,
                         firstName,
                         lastName,
                         phone,
@@ -272,8 +270,6 @@ class raffleNumbersControllers {
                         // paymentDue: 0,
                         status: 'pending',
                         reservedDate: fechaActual,
-                        identificationType,
-                        identificationNumber,
                         firstName,
                         lastName,
                         phone,
@@ -319,7 +315,7 @@ class raffleNumbersControllers {
     }
 
     static amountRaffleNumber = async (req: Request, res: Response) => {
-        const {identificationType, identificationNumber, firstName, lastName, phone, address, amount} = req.body
+        const { firstName, lastName, phone, address, amount} = req.body
         const {descuento} = req.query
         const fechaActual: Date = new Date();
         try {
@@ -478,8 +474,6 @@ class raffleNumbersControllers {
                         paymentDue: currentPaymentDue - amount,
                         status: 'sold',
                         reservedDate: fechaActual,
-                        identificationType,
-                        identificationNumber,
                         firstName,
                         lastName,
                         phone,
@@ -498,8 +492,6 @@ class raffleNumbersControllers {
                         paymentDue: currentPaymentDue - amount,
                         status: 'pending',
                         reservedDate: fechaActual,
-                        identificationType,
-                        identificationNumber,
                         firstName,
                         lastName,
                         phone,
@@ -518,8 +510,6 @@ class raffleNumbersControllers {
                         paymentDue: amount,
                         status: 'pending',
                         reservedDate: fechaActual,
-                        identificationType,
-                        identificationNumber,
                         firstName,
                         lastName,
                         phone,
@@ -607,8 +597,6 @@ class raffleNumbersControllers {
                 reservedDate: null,
                 phone: null,
                 address : null,
-                identificationType: null,
-                identificationNumber: null,
                 firstName: null,
                 lastName: null,
                 paymentAmount: 0,
