@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { Op, where } from 'sequelize';
+import jwt from "jsonwebtoken";
+import { Op } from 'sequelize';
 import Payment from '../models/payment';
 import Raffle from '../models/raffle';
 import RaffleNumbers from '../models/raffle_numbers';
@@ -68,48 +69,59 @@ class raffleController {
         }
     }
 
-static getRafflesDetailsNumbers = async (req: Request, res: Response) => {
-    try {
-        const userRole = req.user.dataValues.rol.dataValues.name;
+    static getRafflesDetailsNumbers = async (req: Request, res: Response) => {
+        try {
+            const userRole = req.user.dataValues.rol.dataValues.name;
 
-        let filterUserRaffle: any = {};
+            let filterUserRaffle: any = {};
 
-        const include: any[] = [
-            {
-                model: RaffleNumbers, 
-                as: 'raffleNumbers',
-                attributes: ['id', 'number', 'paymentAmount'],
-                where: {
-                    status: 'sold'
-                }
-            },
+            const include: any[] = [
+                {
+                    model: RaffleNumbers, 
+                    as: 'raffleNumbers',
+                    attributes: ['id', 'number', 'paymentAmount'],
+                    where: {
+                        status: 'sold'
+                    }
+                },
 
-        ];
+            ];
 
 
-        if (userRole === 'responsable') {
-            filterUserRaffle.userId = req.user.id;
+            if (userRole === 'responsable') {
+                filterUserRaffle.userId = req.user.id;
 
-            include.push({
-                model: UserRifa,
-                as: 'userRiffle',
-                attributes: [],
-                where: filterUserRaffle
+                include.push({
+                    model: UserRifa,
+                    as: 'userRiffle',
+                    attributes: [],
+                    where: filterUserRaffle
+                });
+            }
+
+            const raffles = await Raffle.findAll({
+                attributes: ['id', 'name',],
+                include
             });
+
+            res.json(raffles);
+
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Hubo un Error' });
         }
+    };
 
-        const raffles = await Raffle.findAll({
-            attributes: ['id', 'name',],
-            include
-        });
+    static getRaffleShared = async (req: Request, res: Response) => {
+        try {
+            
+            res.json(req.raffle)
 
-        res.json(raffles);
-
-    } catch (error) {
-        console.log(error);
-        res.status(500).json({ error: 'Hubo un Error' });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
     }
-};
 
 
     static getRaffleById = async (req : Request, res : Response) => {
@@ -187,6 +199,30 @@ static getRafflesDetailsNumbers = async (req: Request, res: Response) => {
             res.status(500).json({error: 'Hubo un Error'})
         }
     } 
+
+    static shareUrlRaffle = async (req: Request, res: Response) => {
+
+        try {
+
+            const token = jwt.sign(
+                {
+                raffleId: req.raffle.id,
+                scope: "raffle:share", 
+                },
+                process.env.JWT_SECRET as string,
+                { expiresIn: "30d" } 
+            );
+
+            
+            const url = `${process.env.FRONTEND_URL}/raffle/shared/${token}`;
+
+            res.json({ url });
+
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Hubo un error generando la URL" });
+            }
+    };
 
     static updateRaffle = async (req : Request, res : Response) => {
         const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate, banerMovileImgUrl} = req.body

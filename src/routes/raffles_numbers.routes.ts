@@ -1,11 +1,31 @@
 import { Router } from "express";
 import raffleNumbersControllers from "../controllers/raffleNumbersController";
-import { authenticate, checkRole, validateUserRaffle } from "../middlewares/auth";
+import { authenticate, authenticateSharedLink, checkRole, validateUserRaffle } from "../middlewares/auth";
 import { raffleExists, raffleNumberExists } from "../middlewares/model";
 import { validateIdParam, validateSchema } from "../middlewares/validateAuth";
 import { amountRaffleNumberSchema, sellRaffleNumbersSchema, updateRaffleNumber, validateRaffleNumbersStatus } from "../middlewares/validateRaffle";
 
 const router = Router()
+
+router.get('/shared/number/:raffleNumberId',
+    authenticateSharedLink,
+    validateIdParam('raffleNumberId'),
+    raffleNumberExists,
+    raffleNumbersControllers.getRaffleNumberByIdShared
+)
+
+router.get('/shared',
+    authenticateSharedLink,
+    raffleNumbersControllers.getRaffleNumbersShared
+)
+
+router.post('/shared/amount-number/:raffleNumberId',
+    authenticateSharedLink,
+    validateIdParam('raffleNumberId'),
+    validateSchema(amountRaffleNumberSchema),
+    raffleNumberExists,
+    raffleNumbersControllers.amountRaffleNumberShared
+)
 
 router.get('/:raffleId',
     authenticate,
@@ -13,6 +33,7 @@ router.get('/:raffleId',
     raffleExists,
     raffleNumbersControllers.getRaffleNumbers
 )
+
 router.get('/:raffleId/exel',
     authenticate,
     validateIdParam('raffleId'),

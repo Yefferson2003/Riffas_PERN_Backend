@@ -3,6 +3,7 @@ import jwt, { JwtPayload } from 'jsonwebtoken';
 import User from '../models/user';
 import Rol from '../models/rol';
 import UserRifa from '../models/user_raffle';
+import Raffle from '../models/raffle';
 
 declare global { 
     namespace Express {
@@ -61,6 +62,40 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
         return 
     }
 };
+
+export const authenticateSharedLink = async (req: Request, res: Response, next: NextFunction) => {
+    const token = req.query.token as string;
+
+    if (!token) {
+        res.status(401).json({ error: "Token no proporcionado" });
+        return
+    }
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload;
+
+        if (decoded.scope !== "raffle:share") {
+            res.status(403).json({ error: "Token no válido para esta acción" });
+            return
+        }
+
+        const raffle = await Raffle.findByPk(decoded.raffleId)
+
+        if (!raffle) {
+            res.status(404).json({ error: "Rifa no encontrada" });
+            return
+        }
+
+        req.raffle = raffle;
+
+        next();
+    } catch (error) {
+        console.error('Error al verificar token:', error.message);
+        res.status(401).json({ error: 'Token no válido o expirado' });
+        return 
+    }
+};
+
 
 export const checkRole = (allowedRoles: string[]) => (req: Request, res: Response, next: NextFunction) => {
 

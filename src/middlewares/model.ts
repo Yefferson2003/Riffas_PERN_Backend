@@ -69,7 +69,7 @@ export async function raffleNumberExists(req:Request, res:Response, next:NextFun
         const raffleNumber = await RaffleNumbers.findOne({
             where: {
                 id: raffleNumberId,
-                raffleId: raffleId
+                raffleId: raffleId || req.raffle.id
             }
         })
         if (!elementExists(res, raffleNumber)) return

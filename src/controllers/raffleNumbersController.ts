@@ -24,6 +24,71 @@ export function formatPostgresDateToReadable(dateString: string): string {
 
 class raffleNumbersControllers {
 
+    static getRaffleNumbersShared = async (req: Request, res: Response) => {
+        const {search, amount, available, sold, pending, page = 1, limit = 100} = req.query
+
+        const pageNumber = parseInt(page as string);
+        const limitNumber = parseInt(limit as string);
+        const offset = (pageNumber - 1) * limitNumber;
+
+        try {
+
+            const filter : any = {}
+
+            filter.raffleId = req.raffle.id
+
+            // if (available && !sold && !pending) {
+            //     filter.status = 'available'
+            // }
+            // if (!available && sold && !pending) {
+            //     filter.status = 'sold'
+            // }
+            // if (!available && !sold && pending) {
+            //     filter.status = 'pending'
+            // }
+
+
+            // if (search) {
+            //     filter[Op.or] = [
+            //         { identificationNumber:  { [Op.eq]: search }},
+            //         { number: { [Op.eq]: +search } }, 
+            //     ];
+            // }
+
+            // // Filtro por monto/deuda (paymentDue)
+            // if (amount && !isNaN(Number(amount))) {
+            //     filter.paymentAmount = { [Op.lte]: Number(amount) };
+            // }
+
+            const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
+                where: filter,
+                attributes: ['id', 'number', 'status'],
+                include: [
+                    {
+                        model: Payment,
+                        as: 'payments',
+                        attributes: ['userId', 'createdAt'], 
+                        separate: true, 
+                        order: [['createdAt', 'ASC']], 
+                    }
+                ],
+                limit: limitNumber,
+                offset,
+                order: [['number', 'ASC']],
+            })
+
+            res.json({
+                total: count,
+                raffleNumbers,
+                totalPages: Math.ceil(count / limitNumber),
+                currentPage: pageNumber,
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
     static getRaffleNumbers = async (req: Request, res: Response) => {
         const {search, amount, available, sold, pending, page = 1, limit = 100} = req.query
 
@@ -206,6 +271,15 @@ class raffleNumbersControllers {
                 ],
             })
             res.json(raffleNumber)
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
+    static getRaffleNumberByIdShared = async (req: Request, res: Response) => {
+        try {
+            res.json(req.raffleNumber)
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
@@ -553,6 +627,80 @@ class raffleNumbersControllers {
             res.status(500).json({error: 'Hubo un Error'})
         }
     }
+    
+    static amountRaffleNumberShared = async (req: Request, res: Response) => {
+        const { firstName, lastName, phone, address, amount } = req.body;
+        const fechaActual: Date = new Date();
+
+        try {
+            // Validar fecha límite
+            if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
+                const error = new Error("Fuera del rango de fechas permitido");
+                res.status(400).json({ error: error.message });
+                return;
+            }
+
+            // Validar que el amount sea siempre 0
+            if (amount !== 0) {
+                const error = new Error("El valor debe ser 0 para apartar el número.");
+                res.status(422).json({ error: error.message });
+                return;
+            }
+
+            if (!req.raffleNumber) {
+                const error = new Error("Número de rifa no encontrado");
+                res.status(404).json({ error: error.message });
+                return;
+            }
+
+            const raffleNumbersStatus = req.raffleNumber.dataValues.status;
+
+            // Solo se puede apartar si está disponible
+            if (raffleNumbersStatus === "available") {
+                await req.raffleNumber.update({
+                    status: "pending", // lo pasamos a pendiente
+                    reservedDate: fechaActual,
+                    firstName,
+                    lastName,
+                    phone,
+                    address,
+                    paymentAmount: 0, // siempre será 0
+                    paymentDue: req.raffle.dataValues.price, // deuda completa
+                });
+
+                const raffleNumber = await RaffleNumbers.findOne({
+                    where: { id: req.raffleNumber.id },
+                    include: [
+                        {
+                            model: Payment,
+                            as: "payments",
+                            include: [
+                                {
+                                    model: User,
+                                    as: "user",
+                                    attributes: ["firstName", "lastName", "identificationNumber"],
+                                },
+                            ],
+                        },
+                    ],
+                });
+
+                res.json([raffleNumber]);
+                req.app.get("io").emit("sellNumbers", {
+                    raffleId: req.raffle.id,
+                });
+
+                return;
+            }
+            
+
+            res.status(400).json({ error: "El número no está disponible para apartar." });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: "Hubo un Error" });
+        }
+    };
+
 
     static updateRaffleNumber = async (req: Request, res: Response) => {
         const { phone, address} = req.body

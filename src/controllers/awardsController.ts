@@ -2,7 +2,24 @@ import Awards from "../models/awards";
 import { Request, Response } from 'express';
 
 class awardsController {
+
     static async getAwardsByRaffles(req: Request, res: Response) {
+        try {
+            const awards = await Awards.findAll({
+                where: {
+                    raffleId: req.raffle.id
+                },
+                order: [['playDate', 'ASC']]
+            })
+
+            res.json(awards)
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({errors: 'Hubo un Error'})
+        }
+    }
+
+    static async getAwardsByRaffleShared(req: Request, res: Response) {
         try {
             const awards = await Awards.findAll({
                 where: {
