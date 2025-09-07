@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
+import { Op, where } from 'sequelize';
 import Payment from '../models/payment';
 import Raffle from '../models/raffle';
 import RaffleNumbers from '../models/raffle_numbers';
@@ -67,6 +67,50 @@ class raffleController {
             res.status(500).json({error: 'Hubo un Error'})
         }
     }
+
+static getRafflesDetailsNumbers = async (req: Request, res: Response) => {
+    try {
+        const userRole = req.user.dataValues.rol.dataValues.name;
+
+        let filterUserRaffle: any = {};
+
+        const include: any[] = [
+            {
+                model: RaffleNumbers, 
+                as: 'raffleNumbers',
+                attributes: ['id', 'number', 'paymentAmount'],
+                where: {
+                    status: 'sold'
+                }
+            },
+
+        ];
+
+
+        if (userRole === 'responsable') {
+            filterUserRaffle.userId = req.user.id;
+
+            include.push({
+                model: UserRifa,
+                as: 'userRiffle',
+                attributes: [],
+                where: filterUserRaffle
+            });
+        }
+
+        const raffles = await Raffle.findAll({
+            attributes: ['id', 'name',],
+            include
+        });
+
+        res.json(raffles);
+
+    } catch (error) {
+        console.log(error);
+        res.status(500).json({ error: 'Hubo un Error' });
+    }
+};
+
 
     static getRaffleById = async (req : Request, res : Response) => {
         try {

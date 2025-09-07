@@ -16,6 +16,12 @@ router.get('/',
     raffleController.getRaffles
 );
 
+router.get('/details-numbers', 
+    authenticate,
+    checkRole(['responsable', 'admin']),
+    raffleController.getRafflesDetailsNumbers
+);
+
 router.get('/:raffleId', 
     authenticate,
     validateIdParam('raffleId'),
