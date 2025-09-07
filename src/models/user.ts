@@ -81,8 +81,12 @@ class User extends Model{
     })
     rolId: number
 
-    @HasMany(() => Payment)
+    @HasMany(() => Payment, {
+        onDelete: 'CASCADE',   
+        hooks: true           
+    })
     payments: Payment[]
+
 
     @BelongsTo(() => Rol)
     rol: Rol

@@ -43,8 +43,11 @@ class Payment extends Model {
     @BelongsTo(() => RaffleNumbers)
     raffleNumber: RaffleNumbers
 
-    @BelongsTo(() => User)
+    @BelongsTo(() => User, {
+        onDelete: 'CASCADE'
+    })
     user: User
+
 }
 
 export default Payment
