@@ -118,6 +118,7 @@ class raffleNumbersControllers {
             if (search) {
                 filter[Op.or] = [
                     { number: { [Op.eq]: +search } }, 
+                    { phone: { [Op.like]: `%${search}%` } }
                 ];
             }
 

@@ -210,7 +210,7 @@ class raffleController {
                 scope: "raffle:share", 
                 },
                 process.env.JWT_SECRET as string,
-                { expiresIn: "30d" } 
+                { expiresIn: "120d" } 
             );
 
             
