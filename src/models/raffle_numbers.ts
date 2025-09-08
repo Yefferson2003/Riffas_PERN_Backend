@@ -2,7 +2,7 @@ import { BelongsTo, Column, DataType, Default, ForeignKey, HasMany, Model, Table
 import Raffle from "./raffle";
 import Payment from "./payment";
 
-export const rifflesNumbersStatusEnum = ['available', 'sold', 'pending'] as const;
+export const rifflesNumbersStatusEnum = ['available', 'sold', 'pending', 'apartado'] as const;
 export const identificationTypeEnum = ['CC', 'TI', 'CE'] as const;
 
 @Table({

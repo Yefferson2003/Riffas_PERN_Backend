@@ -90,7 +90,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, page = 1, limit = 100} = req.query
+        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -109,12 +109,14 @@ class raffleNumbersControllers {
             if (!available && !sold && pending) {
                 filter.status = 'pending'
             }
+            if (!available && !sold && !pending && apartado) {
+                filter.status = 'apartado'
+            }
 
             filter.raffleId = req.raffle.id
 
             if (search) {
                 filter[Op.or] = [
-                    { identificationNumber:  { [Op.eq]: search }},
                     { number: { [Op.eq]: +search } }, 
                 ];
             }
@@ -413,7 +415,7 @@ class raffleNumbersControllers {
                 return
             }
 
-            if (raffleNumbersStatus === 'pending') {
+            if ((raffleNumbersStatus === 'pending') || (raffleNumbersStatus === 'apartado') ) {
 
                 const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
                 const currentPaymentDue = +req.raffleNumber.dataValues.paymentDue
@@ -633,14 +635,13 @@ class raffleNumbersControllers {
         const fechaActual: Date = new Date();
 
         try {
-            // Validar fecha límite
+
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
                 const error = new Error("Fuera del rango de fechas permitido");
                 res.status(400).json({ error: error.message });
                 return;
             }
 
-            // Validar que el amount sea siempre 0
             if (amount !== 0) {
                 const error = new Error("El valor debe ser 0 para apartar el número.");
                 res.status(422).json({ error: error.message });
@@ -655,17 +656,16 @@ class raffleNumbersControllers {
 
             const raffleNumbersStatus = req.raffleNumber.dataValues.status;
 
-            // Solo se puede apartar si está disponible
             if (raffleNumbersStatus === "available") {
                 await req.raffleNumber.update({
-                    status: "pending", // lo pasamos a pendiente
+                    status: "apartado", 
                     reservedDate: fechaActual,
                     firstName,
                     lastName,
                     phone,
                     address,
-                    paymentAmount: 0, // siempre será 0
-                    paymentDue: req.raffle.dataValues.price, // deuda completa
+                    paymentAmount: 0, 
+                    paymentDue: req.raffle.dataValues.price, 
                 });
 
                 const raffleNumber = await RaffleNumbers.findOne({
