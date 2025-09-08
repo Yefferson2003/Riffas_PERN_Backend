@@ -415,7 +415,7 @@ class raffleNumbersControllers {
                 return
             }
 
-            if ((raffleNumbersStatus === 'pending') || (raffleNumbersStatus === 'apartado') ) {
+            if (raffleNumbersStatus === 'pending') {
 
                 const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
                 const currentPaymentDue = +req.raffleNumber.dataValues.paymentDue
@@ -531,7 +531,7 @@ class raffleNumbersControllers {
                 return
             }
 
-            if (raffleNumbersStatus === 'available') {
+            if ((raffleNumbersStatus === 'available') || (raffleNumbersStatus === 'apartado')) {
 
                 const amountCompleto = amount === +req.raffle.dataValues.price
                 const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
