@@ -204,7 +204,7 @@ class raffleController {
     } 
 
 
-    static shareUrlRaffle = async (req: Request, res: Response) => {
+    static shareUrlRaffleShort = async (req: Request, res: Response) => {
         try {
 
             const token = jwt.sign(

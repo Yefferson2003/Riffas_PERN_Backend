@@ -51,7 +51,7 @@ router.post('/:raffleId/URL',
     checkRole(['admin', 'responsable']),
     validateIdParam('raffleId'),
     raffleExists,
-    raffleController.shareUrlRaffle
+    raffleController.shareUrlRaffleShort
 );
 
 router.put('/:raffleId',
