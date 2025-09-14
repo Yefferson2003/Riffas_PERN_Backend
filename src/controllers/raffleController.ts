@@ -6,6 +6,9 @@ import Raffle from '../models/raffle';
 import RaffleNumbers from '../models/raffle_numbers';
 import User from '../models/user';
 import UserRifa from '../models/user_raffle';
+import { v4 as uuidv4 } from "uuid";
+import SharedLink from '../models/sharedLink';
+import slugify from 'slugify';
 
 class raffleController {
 
@@ -200,29 +203,45 @@ class raffleController {
         }
     } 
 
+
     static shareUrlRaffle = async (req: Request, res: Response) => {
+    try {
+        const token = jwt.sign(
+        {
+            raffleId: req.raffle.id,
+            scope: "raffle:share",
+        },
+        process.env.JWT_SECRET as string,
+        { expiresIn: "120d" }
+        );
 
-        try {
+        const slug = slugify(req.raffle.dataValues.name, {
+        lower: true,
+        strict: true,  
+        });
 
-            const token = jwt.sign(
-                {
-                raffleId: req.raffle.id,
-                scope: "raffle:share", 
-                },
-                process.env.JWT_SECRET as string,
-                { expiresIn: "120d" } 
-            );
+        const randomNum = Math.floor(10000 + Math.random() * 90000); 
 
-            
-            const url = `${process.env.FRONTEND_URL}/raffle/shared/${token}`;
+        const identifier = `${slug}-${randomNum}`;
 
-            res.json({ url });
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 120);
 
-        } catch (error) {
-            console.error(error);
-            res.status(500).json({ error: "Hubo un error generando la URL" });
-            }
+        await SharedLink.create({
+            uuid: identifier, 
+            token,
+            expiresAt,
+        });
+
+        const url = `${process.env.FRONTEND_URL}/raffle/shared/${identifier}`;
+
+        res.json({ url });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: "Hubo un error generando la URL" });
+    }
     };
+
 
     static updateRaffle = async (req : Request, res : Response) => {
         const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate, banerMovileImgUrl} = req.body

@@ -5,8 +5,10 @@ import connectDB from "./config/db";
 import cors from 'cors';
 import { corsConfig } from "./config/cors";
 import router from "./routes/index.routes";
+import { initializeData } from "./config/initializeData";
 
 connectDB();
+initializeData()
 
 const app = express();
 const server = http.createServer(app); 

@@ -4,6 +4,7 @@ import User from '../models/user';
 import Rol from '../models/rol';
 import UserRifa from '../models/user_raffle';
 import Raffle from '../models/raffle';
+import SharedLink from '../models/sharedLink';
 
 declare global { 
     namespace Express {
@@ -64,15 +65,33 @@ export const authenticate = async (req: Request, res: Response, next: NextFuncti
 };
 
 export const authenticateSharedLink = async (req: Request, res: Response, next: NextFunction) => {
-    const token = req.query.token as string;
+    const uuid = req.query.token as string;
 
-    if (!token) {
-        res.status(401).json({ error: "Token no proporcionado" });
+    if (!uuid) {
+        res.status(401).json({ error: "UUID no proporcionado" });
         return
     }
 
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as jwt.JwtPayload;
+
+        const sharedLink = await SharedLink.findOne({
+            where: {
+                uuid
+            }
+        });
+
+        if (!sharedLink) {
+            res.status(404).json({ error: "Link no encontrado" });
+            return;
+        }
+
+        // validar expiración
+        if (new Date() > sharedLink.expiresAt) {
+            res.status(410).json({ error: "El link ha expirado" });
+            return;
+        }
+
+        const decoded = jwt.verify(sharedLink.dataValues.token, process.env.JWT_SECRET as string) as jwt.JwtPayload;
 
         if (decoded.scope !== "raffle:share") {
             res.status(403).json({ error: "Token no válido para esta acción" });
