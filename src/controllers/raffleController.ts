@@ -205,41 +205,42 @@ class raffleController {
 
 
     static shareUrlRaffle = async (req: Request, res: Response) => {
-    try {
-        const token = jwt.sign(
-        {
-            raffleId: req.raffle.id,
-            scope: "raffle:share",
-        },
-        process.env.JWT_SECRET as string,
-        { expiresIn: "120d" }
-        );
+        try {
 
-        const slug = slugify(req.raffle.dataValues.name, {
-        lower: true,
-        strict: true,  
-        });
+            const token = jwt.sign(
+                {
+                    raffleId: req.raffle.id,
+                    scope: "raffle:share",
+                },
+                process.env.JWT_SECRET as string,
+                { expiresIn: "120d" }
+            );
 
-        const randomNum = Math.floor(10000 + Math.random() * 90000); 
+            const slug = slugify(req.raffle.dataValues.name, {
+                lower: true,
+                strict: true,  
+            });
 
-        const identifier = `${slug}-${randomNum}`;
+            const randomNum = Math.floor(10000 + Math.random() * 90000); 
 
-        const expiresAt = new Date();
-        expiresAt.setDate(expiresAt.getDate() + 120);
+            const identifier = `${slug}-${randomNum}`;
 
-        await SharedLink.create({
-            uuid: identifier, 
-            token,
-            expiresAt,
-        });
+            const expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + 120);
 
-        const url = `${process.env.FRONTEND_URL}/raffle/shared/${identifier}`;
+            await SharedLink.create({
+                uuid: identifier, 
+                token,
+                expiresAt,
+            });
 
-        res.json({ url });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ error: "Hubo un error generando la URL" });
-    }
+            const url = `${process.env.FRONTEND_URL}/raffle/shared/${identifier}`;
+
+            res.json({ url });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Hubo un error generando la URL" });
+        }
     };
 
 
