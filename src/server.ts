@@ -1,14 +1,13 @@
-import express from "express";
-import http from "http"; 
-import { Server } from "socket.io";
-import connectDB from "./config/db";
 import cors from 'cors';
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
 import { corsConfig } from "./config/cors";
+import connectDB from "./config/db";
 import router from "./routes/index.routes";
-import { initializeData } from "./config/initializeData";
 
 connectDB();
-initializeData()
+// initializeData()
 
 const app = express();
 const server = http.createServer(app); 
