@@ -113,6 +113,11 @@ class raffleNumbersControllers {
                 filter.status = 'apartado'
             }
 
+            // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
+            if (paymentMethod && !available && !sold && !pending) {
+                filter.status = { [Op.ne]: 'available' };
+            }
+
             filter.raffleId = req.raffle.id
 
             if (search) {
@@ -169,8 +174,8 @@ class raffleNumbersControllers {
     }
     
     static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, paymentMethod} = req.query
-        console.log('exelfiilter', paymentMethod);
+        const {search, amount, available, sold, pending, paymentMethod, apartado} = req.query
+        // console.log('exelfiilter', paymentMethod);
         
         try {
 
@@ -184,6 +189,14 @@ class raffleNumbersControllers {
             }
             if (!available && !sold && pending) {
                 filter.status = 'pending'
+            }
+            if (!available && !sold && !pending && apartado) {
+                filter.status = 'apartado'
+            }
+
+            // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
+            if (paymentMethod && !available && !sold && !pending) {
+                filter.status = { [Op.ne]: 'available' };
             }
 
             filter.raffleId = req.raffle.id
