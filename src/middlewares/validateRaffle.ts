@@ -102,7 +102,11 @@ export const sellRaffleNumbersSchema = z.object({
     address: z
         .string()
         .min(5, "La dirección es obligatoria y debe tener al menos 5 caracteres")
-        .max(100, "La dirección no debe exceder 100 caracteres")
+        .max(100, "La dirección no debe exceder 100 caracteres"),
+    amount: z
+        .number()
+        .min(1, "El monto no puede ser 0")
+        .optional()
 })
 
 export const amountRaffleNumberSchema = z.object({

@@ -290,10 +290,16 @@ class raffleNumbersControllers {
     }
 
     static sellRaffleNumbers = async (req: Request, res: Response) => {
-        const {raffleNumbersIds, firstName, lastName, phone, address} = req.body
-        const {separar} = req.query
+        const {raffleNumbersIds, firstName, lastName, phone, address, amount} = req.body
+        const {separar, descuento} = req.query
         const fechaActual: Date = new Date();
         try {
+
+            if (descuento && (amount < 1 || amount === undefined)) {
+                const error = new Error('El monto no puede ser 0 si se aplica descuento');
+                res.status(400).json({error: error.message});
+                return
+            }
 
             if (!Array.isArray(raffleNumbersIds) || raffleNumbersIds.length === 0) {
                 res.status(400).json({ error: 'Los IDs de las rifas son requeridos y deben ser un arreglo' });
@@ -312,7 +318,7 @@ class raffleNumbersControllers {
 
             paymentsData = raffleNumbersIds.map((id) => ({
                 riffleNumberId: id,
-                amount: separar ? 0 : req.raffle.dataValues.price,
+                amount: separar ? 0 : (descuento ? amount : req.raffle.dataValues.price),
                 paidAt: separar ? undefined : fechaActual,
                 userId: req.user.id
             }));
@@ -321,9 +327,10 @@ class raffleNumbersControllers {
             const payments = await Payment.bulkCreate(paymentsData);
 
             if (!separar) {
+
                 const [affectedRows, updatedInstances] = await RaffleNumbers.update(
                     {
-                        paymentAmount: req.raffle.dataValues.price,
+                        paymentAmount: descuento ? amount : req.raffle.dataValues.price,
                         paymentDue: 0,
                         status: 'sold',
                         reservedDate: fechaActual,
@@ -344,7 +351,7 @@ class raffleNumbersControllers {
                 const [affectedRows, updatedInstances] = await RaffleNumbers.update(
                     {
                         paymentAmount: 0,
-                        // paymentDue: 0,
+                        paymentDue: descuento ? amount : 0,
                         status: 'pending',
                         reservedDate: fechaActual,
                         firstName,
@@ -407,6 +414,7 @@ class raffleNumbersControllers {
                 res.status(422).json({error: error.message})
                 return
             }
+            
 
             const raffleNumbersStatus = req.raffleNumber.dataValues.status
 
