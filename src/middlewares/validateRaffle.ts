@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from 'zod';
 import RaffleNumbers, { identificationTypeEnum } from '../models/raffle_numbers';
+import { paymentMethodEnum } from "../models/payment";
 
 export const createRifaSchema = z.object({
     name: z
@@ -38,6 +39,7 @@ export const createRifaSchema = z.object({
         .int({ message: "La cantidad debe ser un número entero." })
         .min(1, { message: "La cantidad debe ser al menos 1." })
         .default(1000),
+    
 }).
 refine((data) => {
     const startDate = new Date(data.startDate);
@@ -106,7 +108,8 @@ export const sellRaffleNumbersSchema = z.object({
     amount: z
         .number()
         .min(1, "El monto no puede ser 0")
-        .optional()
+        .optional(),
+    paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
 })
 
 export const amountRaffleNumberSchema = z.object({
@@ -134,8 +137,9 @@ export const amountRaffleNumberSchema = z.object({
         .min(5, "La dirección es obligatoria y debe tener al menos 5 caracteres")
         .max(100, "La dirección no debe exceder 100 caracteres"),
     amount : z
-        .number()
+        .number(),
         // .positive({ message: 'El valor debe ser mayor a cero.' })
+    paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
 })
 
 export const validateRaffleNumbersStatus = async (req: Request, res: Response, next: NextFunction) => {

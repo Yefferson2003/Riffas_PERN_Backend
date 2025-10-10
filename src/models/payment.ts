@@ -2,6 +2,25 @@ import { BelongsTo, Column, DataType, Default, ForeignKey, Model, Table } from "
 import RaffleNumbers from "./raffle_numbers";
 import User from "./user";
 
+export const paymentMethodEnum = [
+    'Efectivo', 
+    'Pago móvil',
+    'Transferencia VES', 
+    'Nequi',
+    'Bancolombia', 
+    'Bancolombia internacional', 
+    'Zelle',
+    'Transferencia EEUU',
+    'Panamá', 
+    'Pesos chilenos (Rut)',
+    'PayPal',
+    'Binance', 
+    'Western', 
+    'Otros',
+    'Apartado',
+    ''
+] as const;
+
 @Table({
     tableName: 'payments'
 })
@@ -47,6 +66,14 @@ class Payment extends Model {
         onDelete: 'CASCADE'
     })
     user: User
+
+    @Default('Efectivo')
+    @Column({
+        type: DataType.ENUM(...paymentMethodEnum),
+        allowNull: true,
+        defaultValue: 'Efectivo'
+    })
+    paymentMethod: string
 
 }
 

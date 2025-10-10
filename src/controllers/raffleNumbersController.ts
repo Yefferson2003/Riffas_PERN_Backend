@@ -290,7 +290,7 @@ class raffleNumbersControllers {
     }
 
     static sellRaffleNumbers = async (req: Request, res: Response) => {
-        const {raffleNumbersIds, firstName, lastName, phone, address, amount} = req.body
+        const {raffleNumbersIds, firstName, lastName, phone, address, amount, paymentMethod} = req.body
         const {separar, descuento} = req.query
         const fechaActual: Date = new Date();
         try {
@@ -320,7 +320,8 @@ class raffleNumbersControllers {
                 riffleNumberId: id,
                 amount: separar ? 0 : (descuento ? amount : req.raffle.dataValues.price),
                 paidAt: separar ? undefined : fechaActual,
-                userId: req.user.id
+                userId: req.user.id,
+                paymentMethod: separar ? ( descuento ? paymentMethod : 'Apartado') : paymentMethod
             }));
 
 
@@ -399,7 +400,7 @@ class raffleNumbersControllers {
     }
 
     static amountRaffleNumber = async (req: Request, res: Response) => {
-        const { firstName, lastName, phone, address, amount} = req.body
+        const { firstName, lastName, phone, address, amount, paymentMethod} = req.body
         const {descuento} = req.query
         const fechaActual: Date = new Date();
         try {
@@ -481,7 +482,8 @@ class raffleNumbersControllers {
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
                         paidAt: fechaActual,
-                        userId: req.user.id
+                        userId: req.user.id,
+                        paymentMethod
                     })
 
                     await req.raffleNumber.update({
@@ -506,7 +508,8 @@ class raffleNumbersControllers {
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
-                        userId: req.user.id
+                        userId: req.user.id,
+                        paymentMethod
                     })
 
                     await req.raffleNumber.update({
@@ -542,6 +545,7 @@ class raffleNumbersControllers {
 
             if ((raffleNumbersStatus === 'available') || (raffleNumbersStatus === 'apartado')) {
 
+                const amountZero = amount === 0
                 const amountCompleto = amount === +req.raffle.dataValues.price
                 const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
                 const currentPaymentDue = +req.raffleNumber.dataValues.paymentDue
@@ -551,7 +555,8 @@ class raffleNumbersControllers {
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
                         paidAt: fechaActual,
-                        userId: req.user.id
+                        userId: req.user.id,
+                        paymentMethod
                     })
 
                     await req.raffleNumber.update({
@@ -568,7 +573,8 @@ class raffleNumbersControllers {
                     const payment = await Payment.create({
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
-                        userId: req.user.id
+                        userId: req.user.id,
+                        paymentMethod: amountZero ? 'Apartado' : paymentMethod
                     })
                     
 
@@ -587,7 +593,8 @@ class raffleNumbersControllers {
                         riffleNumberId: req.raffleNumber.id,
                         amount: 0,
                         // paidAt: fechaActual,
-                        userId: req.user.id
+                        userId: req.user.id,
+                        paymentMethod: 'Apartado'
                     })
 
                     await req.raffleNumber.update({
