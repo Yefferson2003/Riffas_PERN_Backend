@@ -90,7 +90,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100} = req.query
+        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100, paymentMethod} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -127,21 +127,33 @@ class raffleNumbersControllers {
                 filter.paymentAmount = { [Op.lte]: Number(amount) };
             }
 
+            // Configurar include para payments con filtro de paymentMethod si se especifica
+            const paymentInclude: any = {
+                model: Payment,
+                as: 'payments',
+                attributes: ['userId', 'createdAt', 'paymentMethod'], 
+                separate: true, 
+                order: [['createdAt', 'ASC']],
+            };
+
+            // Si se especifica paymentMethod, filtrar solo números con al menos un pago de ese método
+            if (paymentMethod) {
+                paymentInclude.where = {
+                    paymentMethod: paymentMethod,
+                    isValid: true
+                };
+                paymentInclude.required = true;
+                paymentInclude.separate = false; // Cambiar a false para que funcione el required
+            }
+
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status'],
-                include: [
-                    {
-                        model: Payment,
-                        as: 'payments',
-                        attributes: ['userId', 'createdAt'], 
-                        separate: true, 
-                        order: [['createdAt', 'ASC']], 
-                    }
-                ],
+                include: [paymentInclude],
                 limit: limitNumber,
                 offset,
                 order: [['number', 'ASC']],
+                distinct: true, // Evitar duplicados cuando hay múltiples pagos
             })
 
             res.json({
@@ -157,8 +169,9 @@ class raffleNumbersControllers {
     }
     
     static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending} = req.query
-
+        const {search, amount, available, sold, pending, paymentMethod} = req.query
+        console.log('exelfiilter', paymentMethod);
+        
         try {
 
             const filter : any = {}
@@ -187,10 +200,28 @@ class raffleNumbersControllers {
                 filter.paymentAmount = { [Op.lte]: Number(amount) };
             }
 
+            // Configurar include para payments con filtro de paymentMethod si se especifica
+            const includeOptions: any[] = [];
+            
+            if (paymentMethod) {
+                includeOptions.push({
+                    model: Payment,
+                    as: 'payments',
+                    attributes: [],
+                    where: {
+                        paymentMethod: paymentMethod,
+                        isValid: true
+                    },
+                    required: true
+                });
+            }
+
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status', 'paymentAmount', 'paymentDue', 'phone', 'firstName', 'lastName'],
+                include: includeOptions,
                 order: [['number', 'ASC']],
+                distinct: paymentMethod ? true : false, // Evitar duplicados cuando hay filtro de método de pago
             })
 
             res.json({
