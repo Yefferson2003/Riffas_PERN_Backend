@@ -420,6 +420,11 @@ class raffleNumbersControllers {
         const {raffleNumbersIds, firstName, lastName, phone, address, amount, paymentMethod} = req.body
         const {separar, descuento} = req.query
         const fechaActual: Date = new Date();
+
+        // console.log('---- sellRaflleNumber -----');
+        // console.log(amount);
+        
+        
         try {
 
             if (descuento && (amount < 1 || amount === undefined)) {
@@ -433,30 +438,286 @@ class raffleNumbersControllers {
                 return 
             }
 
-
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
                 const error = new Error('Fuera del rango de fechas permitido');
                 res.status(400).json({error: error.message});
                 return
             }
 
-            let paymentsData : any = [] 
+            // Buscar y validar todos los números de rifa primero
+            const raffleNumbers = await RaffleNumbers.findAll({
+                where: {
+                    id: raffleNumbersIds,
+                    raffleId: req.raffle.id
+                },
+                attributes: ['id', 'number', 'status', 'paymentDue', 'paymentAmount']
+            });
+
+            // Validar que se encontraron todos los números
+            if (raffleNumbers.length !== raffleNumbersIds.length) {
+                res.status(400).json({ 
+                    error: `Se encontraron ${raffleNumbers.length} números de rifa, pero se enviaron ${raffleNumbersIds.length} IDs. Algunos números no existen.`
+                });
+                return
+            }
+            // Validar el estado de los números - Abonar varios números pendientes
+            const allPending = raffleNumbers.every(num => num.dataValues.status === 'pending');
+
+            // Si todos los números son pendientes, procesar distribución equitativa y terminar
+            if (allPending) {
+                const totalPaymentDue = raffleNumbers.reduce((sum, num) => sum + (num.dataValues.paymentDue || 0), 0);
+
+                if ((amount <= 0) || amount > totalPaymentDue ) {
+                    const error = new Error('El valor ingresado debe ser mayor a cero y no puede exceder la deuda total.');
+                    res.status(422).json({ error: error.message });
+                    return;
+                }
+
+                // Verificar si todas las deudas son iguales
+                const firstDebt = Number(raffleNumbers[0].dataValues.paymentDue) || 0;
+                const allDebtsEqual = raffleNumbers.every(num => 
+                    Math.abs((Number(num.dataValues.paymentDue) || 0) - firstDebt) < 0.01
+                );
+
+                if (allDebtsEqual) {
+
+                    // Distribución equitativa del abono entre todos los números pendientes
+                    const baseAmount = Math.floor((amount * 100) / raffleNumbers.length) / 100; // Cantidad base por número
+                    const remainderCents = Math.round((amount - (baseAmount * raffleNumbers.length)) * 100); // Centavos restantes
+                    
+                    // Crear pagos con distribución equitativa
+                    const distributedPayments = raffleNumbers.map((raffleNumber, index) => {
+                        let distributedAmount = baseAmount;
+                        // Distribuir centavos restantes en los primeros números
+                        if (index < remainderCents) {
+                            distributedAmount += 0.01;
+                        }
+                        
+                        return {
+                            riffleNumberId: raffleNumber.id,
+                            amount: distributedAmount,
+                            paidAt: fechaActual,
+                            userId: req.user.id,
+                            paymentMethod
+                        };
+                    });
+    
+                    // Crear todos los pagos distribuidos
+                    await Payment.bulkCreate(distributedPayments);
+    
+                    // Actualizar cada número con su abono correspondiente
+                    for (let index = 0; index < raffleNumbers.length; index++) {
+                        const raffleNumber = raffleNumbers[index];
+                        let distributedAmount = baseAmount;
+                        if (index < remainderCents) {
+                            distributedAmount += 0.01;
+                        }
+    
+                        const currentPaymentAmount = Number(raffleNumber.dataValues.paymentAmount) || 0;
+                        const currentPaymentDue = Number(raffleNumber.dataValues.paymentDue) || 0;
+                        
+                        const newPaymentAmount = Math.round((currentPaymentAmount + distributedAmount) * 100) / 100;
+                        const newPaymentDue = Math.round((currentPaymentDue - distributedAmount) * 100) / 100;
+    
+                        // Si se completa el pago, marcar como vendido
+                        const status = newPaymentDue <= 0 ? 'sold' : 'pending';
+    
+                        await RaffleNumbers.update(
+                            {
+                                paymentAmount: newPaymentAmount,
+                                paymentDue: Math.max(0, newPaymentDue),
+                                status: status
+                            },
+                            {
+                                where: { id: raffleNumber.id }
+                            }
+                        );
+                    }
+                } else {
+                    // Distribución por llenado secuencial - pagar deudas menores primero
+                    
+                    // Crear array con índices y deudas, ordenado por deuda ascendente
+                    const debtInfo = raffleNumbers.map((num, index) => ({
+                        index,
+                        debt: Number(num.dataValues.paymentDue) || 0,
+                        raffleNumber: num
+                    })).sort((a, b) => a.debt - b.debt);
+
+                    let remainingAmount = amount;
+                    const distributedAmounts = new Array(raffleNumbers.length).fill(0);
+
+                    // Procesar cada grupo de deudas iguales
+                    let currentDebtGroup = [];
+                    let currentDebt = -1;
+
+                    for (let i = 0; i < debtInfo.length; i++) {
+                        const info = debtInfo[i];
+                        
+                        // Si es una nueva deuda, procesar el grupo anterior
+                        if (info.debt !== currentDebt) {
+                            // Procesar grupo anterior si existe
+                            if (currentDebtGroup.length > 0 && remainingAmount > 0) {
+                                const groupDebt = currentDebtGroup[0].debt;
+                                const totalNeededForGroup = groupDebt * currentDebtGroup.length;
+                                
+                                if (remainingAmount >= totalNeededForGroup) {
+                                    // Pagar completamente todo el grupo
+                                    currentDebtGroup.forEach(item => {
+                                        distributedAmounts[item.index] = groupDebt;
+                                    });
+                                    remainingAmount -= totalNeededForGroup;
+                                } else {
+                                    // Distribuir lo que queda equitativamente entre el grupo
+                                    const baseAmountPerNumber = Math.floor((remainingAmount * 100) / currentDebtGroup.length) / 100;
+                                    const remainderCents = Math.round((remainingAmount - (baseAmountPerNumber * currentDebtGroup.length)) * 100);
+                                    
+                                    currentDebtGroup.forEach((item, groupIndex) => {
+                                        let amountForThisNumber = baseAmountPerNumber;
+                                        if (groupIndex < remainderCents) {
+                                            amountForThisNumber += 0.01;
+                                        }
+                                        distributedAmounts[item.index] = amountForThisNumber;
+                                    });
+                                    remainingAmount = 0;
+                                }
+                            }
+                            
+                            // Iniciar nuevo grupo
+                            currentDebtGroup = [info];
+                            currentDebt = info.debt;
+                        } else {
+                            // Agregar al grupo actual
+                            currentDebtGroup.push(info);
+                        }
+                    }
+
+                    // Procesar el último grupo
+                    if (currentDebtGroup.length > 0 && remainingAmount > 0) {
+                        const groupDebt = currentDebtGroup[0].debt;
+                        const totalNeededForGroup = groupDebt * currentDebtGroup.length;
+                        
+                        if (remainingAmount >= totalNeededForGroup) {
+                            // Pagar completamente todo el grupo
+                            currentDebtGroup.forEach(item => {
+                                distributedAmounts[item.index] = groupDebt;
+                            });
+                            remainingAmount -= totalNeededForGroup;
+                        } else {
+                            // Distribuir lo que queda equitativamente entre el grupo
+                            const baseAmountPerNumber = Math.floor((remainingAmount * 100) / currentDebtGroup.length) / 100;
+                            const remainderCents = Math.round((remainingAmount - (baseAmountPerNumber * currentDebtGroup.length)) * 100);
+                            
+                            currentDebtGroup.forEach((item, groupIndex) => {
+                                let amountForThisNumber = baseAmountPerNumber;
+                                if (groupIndex < remainderCents) {
+                                    amountForThisNumber += 0.01;
+                                }
+                                distributedAmounts[item.index] = amountForThisNumber;
+                            });
+                            remainingAmount = 0;
+                        }
+                    }
+
+                    // Crear pagos con distribución calculada - validar que todos los montos sean válidos
+                    const distributedPayments = raffleNumbers.map((raffleNumber, index) => {
+                        const distributedAmount = distributedAmounts[index];
+                        
+                        // Validar que el monto sea un número válido y positivo
+                        const validAmount = isFinite(distributedAmount) && !isNaN(distributedAmount) && distributedAmount >= 0 
+                            ? distributedAmount 
+                            : 0;
+
+                        return {
+                            riffleNumberId: raffleNumber.id,
+                            amount: validAmount,
+                            paidAt: fechaActual,
+                            userId: req.user.id,
+                            paymentMethod
+                        };
+                    });
+
+                    // Crear todos los pagos distribuidos
+                    await Payment.bulkCreate(distributedPayments);
+
+                    // Actualizar cada número con su abono correspondiente
+                    for (let index = 0; index < raffleNumbers.length; index++) {
+                        const raffleNumber = raffleNumbers[index];
+                        const distributedAmount = distributedAmounts[index];
+
+                        // Validar que el monto distribuido sea válido
+                        const validDistributedAmount = isFinite(distributedAmount) && !isNaN(distributedAmount) && distributedAmount >= 0 
+                            ? distributedAmount 
+                            : 0;
+
+                        const currentPaymentAmount = Number(raffleNumber.dataValues.paymentAmount) || 0;
+                        const currentPaymentDue = Number(raffleNumber.dataValues.paymentDue) || 0;
+                        
+                        const newPaymentAmount = Math.round((currentPaymentAmount + validDistributedAmount) * 100) / 100;
+                        const newPaymentDue = Math.round((currentPaymentDue - validDistributedAmount) * 100) / 100;
+
+                        // Validar que los nuevos valores sean números válidos
+                        const validNewPaymentAmount = isFinite(newPaymentAmount) && !isNaN(newPaymentAmount) ? newPaymentAmount : currentPaymentAmount;
+                        const validNewPaymentDue = isFinite(newPaymentDue) && !isNaN(newPaymentDue) ? Math.max(0, newPaymentDue) : currentPaymentDue;
+
+                        // Si se completa el pago, marcar como vendido
+                        const status = validNewPaymentDue <= 0 ? 'sold' : 'pending';
+
+                        await RaffleNumbers.update(
+                            {
+                                paymentAmount: validNewPaymentAmount,
+                                paymentDue: validNewPaymentDue,
+                                status: status
+                            },
+                            {
+                                where: { id: raffleNumber.id }
+                            }
+                        );
+                    }
+                }
 
 
-            paymentsData = raffleNumbersIds.map((id) => ({
-                riffleNumberId: id,
+                // Obtener los números actualizados
+                const updatedRaffleNumbers = await RaffleNumbers.findAll({
+                    where: { id: raffleNumbers.map(num => num.id) },
+                    include: [
+                        {
+                            model: Payment,
+                            as: 'payments', 
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'user',
+                                    attributes: ['firstName','lastName', 'identificationNumber']
+                                }
+                            ]
+                        },
+                    ],
+                });
+
+                req.app.get('io').emit('sellNumbers', {
+                    raffleId: req.raffle.id
+                }); 
+
+                res.json(updatedRaffleNumbers);
+                return; // Terminar aquí para números pendientes
+            }
+
+            // Crear datos de pagos usando los IDs validados (solo para números NO pendientes)
+            const paymentsData = raffleNumbers.map((raffleNumber) => ({
+                riffleNumberId: raffleNumber.id,
                 amount: separar ? 0 : (descuento ? amount : req.raffle.dataValues.price),
                 paidAt: separar ? undefined : fechaActual,
                 userId: req.user.id,
                 paymentMethod: separar ? ( descuento ? paymentMethod : 'Apartado') : paymentMethod
             }));
 
+            // Crear todos los pagos en lote
+            await Payment.bulkCreate(paymentsData);
 
-            const payments = await Payment.bulkCreate(paymentsData);
-
+            // Actualizar todos los números en lote según el modo
             if (!separar) {
-
-                const [affectedRows, updatedInstances] = await RaffleNumbers.update(
+                // Modo compra - marcar como vendidos
+                await RaffleNumbers.update(
                     {
                         paymentAmount: descuento ? amount : req.raffle.dataValues.price,
                         paymentDue: 0,
@@ -469,14 +730,13 @@ class raffleNumbersControllers {
                     },
                     {
                         where: {
-                            id: raffleNumbersIds, 
-                        },
-                        returning: true
+                            id: raffleNumbers.map(num => num.id)
+                        }
                     }
-                    
                 );
-            }else {
-                const [affectedRows, updatedInstances] = await RaffleNumbers.update(
+            } else {
+                // Modo separar - marcar como pendientes
+                await RaffleNumbers.update(
                     {
                         paymentAmount: 0,
                         paymentDue: descuento ? amount : req.raffle.dataValues.price,
@@ -489,17 +749,15 @@ class raffleNumbersControllers {
                     },
                     {
                         where: {
-                            id: raffleNumbersIds, 
-                        },
-                        returning: true
+                            id: raffleNumbers.map(num => num.id)
+                        }
                     }
-                    
                 );
             }
-            
 
-            const raffleNumber = await RaffleNumbers.findAll({
-                where: { id: raffleNumbersIds },
+            // Obtener los números actualizados con sus pagos
+            const updatedRaffleNumbers = await RaffleNumbers.findAll({
+                where: { id: raffleNumbers.map(num => num.id) },
                 include: [
                     {
                         model: Payment,
@@ -519,7 +777,9 @@ class raffleNumbersControllers {
                 raffleId: req.raffle.id
             }); 
 
-            res.json(raffleNumber)
+            res.json(updatedRaffleNumbers); 
+
+
         } catch (error) {
             console.log(error)
             res.status(500).json({error: 'Hubo un Error'})

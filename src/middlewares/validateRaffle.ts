@@ -85,7 +85,9 @@ export const raffleNumbersIdsShema = z.object({
 })
 
 export const sellRaffleNumbersSchema = z.object({
-    raffleNumbersIds : z.array(z.number().int().positive()),
+    raffleNumbersIds: z
+        .array(z.number().int().positive())
+        .nonempty({ message: "Debe seleccionar al menos un número de rifa." }),
     firstName: z
         .string()
         .min(1, "El nombre es obligatorio")
@@ -111,7 +113,7 @@ export const sellRaffleNumbersSchema = z.object({
         .max(100, "La dirección no debe exceder 100 caracteres"),
     amount: z
         .number()
-        .min(1, "El monto no puede ser 0")
+        .min(1, { message: "El monto no puede ser 0" })
         .optional(),
     paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
 })
@@ -153,13 +155,13 @@ export const validateRaffleNumbersStatus = async (req: Request, res: Response, n
         const matchingCount = await RaffleNumbers.count({
             where: {
                 id: raffleNumbersIds,
-                status: 'available',
+                // status: 'available',
                 raffleId: req.raffle.id
             }
         })
 
         if (matchingCount < raffleNumbersIds.length) {
-            const error = new Error('Algunos números no están disponibles para la venta.');
+            const error = new Error('Algunos números no están disponibles');
             res.status(400).json({error: error.message});
             return
         }
