@@ -51,7 +51,7 @@ router.get('/:raffleId/exel-filter',
 router.get('/:raffleId/number/pending-numbers',
     authenticate,
     validateIdParam('raffleId'),
-    validateSchema(raffleNumbersIdsShema),
+    // validateSchema(raffleNumbersIdsShema),
     raffleExists,
     raffleNumbersControllers.getRaffleNumbersPendingSell
 )

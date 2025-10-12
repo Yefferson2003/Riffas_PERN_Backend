@@ -267,7 +267,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbersPendingSell = async (req:Request, res: Response) => {
-        const parsed = raffleNumbersIdsShema.safeParse(req.body)
+        const parsed = raffleNumbersIdsShema.safeParse(req.query)
         try {
             if (!parsed.success) {
                 res.status(400).json({ error: parsed.error })
@@ -277,7 +277,7 @@ class raffleNumbersControllers {
             const { raffleNumbersIds } = parsed.data
 
             const raffleNumbers = await RaffleNumbers.findAll({
-                attributes: ['id', 'number', 'status', 'paymentDue', 'firstName', 'lastName', 'phone', 'address'],
+                attributes: ['id', 'number', 'status', 'paymentDue', 'paymentAmount', 'firstName', 'lastName', 'phone', 'address'],
                 where: {
                     id: {
                         [Op.in]: raffleNumbersIds
@@ -479,7 +479,7 @@ class raffleNumbersControllers {
                 const [affectedRows, updatedInstances] = await RaffleNumbers.update(
                     {
                         paymentAmount: 0,
-                        paymentDue: descuento ? amount : 0,
+                        paymentDue: descuento ? amount : req.raffle.dataValues.price,
                         status: 'pending',
                         reservedDate: fechaActual,
                         firstName,

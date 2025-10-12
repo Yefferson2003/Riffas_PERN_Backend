@@ -81,7 +81,7 @@ export const updateRifaSchema = z.object({
 })
 
 export const raffleNumbersIdsShema = z.object({
-    raffleNumbersIds : z.array(z.number().int().positive()),
+    raffleNumbersIds : z.array(z.string().regex(/^\d+$/, "El ID del número de rifa debe ser un número válido")),
 })
 
 export const sellRaffleNumbersSchema = z.object({
