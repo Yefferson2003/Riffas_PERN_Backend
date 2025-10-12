@@ -80,6 +80,10 @@ export const updateRifaSchema = z.object({
         }),
 })
 
+export const raffleNumbersIdsShema = z.object({
+    raffleNumbersIds : z.array(z.number().int().positive()),
+})
+
 export const sellRaffleNumbersSchema = z.object({
     raffleNumbersIds : z.array(z.number().int().positive()),
     firstName: z

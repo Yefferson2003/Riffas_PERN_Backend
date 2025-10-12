@@ -3,7 +3,7 @@ import raffleNumbersControllers from "../controllers/raffleNumbersController";
 import { authenticate, authenticateSharedLink, checkRole, validateUserRaffle } from "../middlewares/auth";
 import { raffleExists, raffleNumberExists } from "../middlewares/model";
 import { validateIdParam, validateSchema } from "../middlewares/validateAuth";
-import { amountRaffleNumberSchema, sellRaffleNumbersSchema, updateRaffleNumber, validateRaffleNumbersStatus } from "../middlewares/validateRaffle";
+import { amountRaffleNumberSchema, raffleNumbersIdsShema, sellRaffleNumbersSchema, updateRaffleNumber, validateRaffleNumbersStatus } from "../middlewares/validateRaffle";
 
 const router = Router()
 
@@ -46,6 +46,14 @@ router.get('/:raffleId/exel-filter',
     validateIdParam('raffleId'),
     raffleExists,
     raffleNumbersControllers.getRaffleNumbersForExelFilter
+)
+
+router.get('/:raffleId/number/sell-numbers',
+    authenticate,
+    validateIdParam('raffleId'),
+    validateSchema(raffleNumbersIdsShema),
+    raffleExists,
+    raffleNumbersControllers.getRaffleNumbersPendingSell
 )
 
 router.get('/:raffleId/number/:raffleNumberId',

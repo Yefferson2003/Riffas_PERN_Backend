@@ -4,6 +4,7 @@ import Payment from '../models/payment';
 import RaffleNumbers from '../models/raffle_numbers';
 import Rol from '../models/rol';
 import User from '../models/user';
+import { raffleNumbersIdsShema } from '../middlewares/validateRaffle';
 
 export function formatPostgresDateToReadable(dateString: string): string {
     const date = new Date(dateString);
@@ -121,10 +122,18 @@ class raffleNumbersControllers {
             filter.raffleId = req.raffle.id
 
             if (search) {
-                filter[Op.or] = [
-                    { number: { [Op.eq]: +search } }, 
-                    { phone: { [Op.like]: `%${search}%` } }
-                ];
+                const searchConditions = [];
+                
+                // Si search es numérico, buscar por número
+                if (!isNaN(Number(search))) {
+                    searchConditions.push({ number: { [Op.eq]: +search } });
+                }
+                
+                // Siempre buscar por teléfono
+                searchConditions.push({ phone: { [Op.like]: `%${search}%` } });
+                searchConditions.push({ firstName: { [Op.like]: `%${search}%` } });
+                searchConditions.push({ lastName: { [Op.like]: `%${search}%` } });
+                filter[Op.or] = searchConditions;
             }
 
             // Filtro por monto/deuda (paymentDue)
@@ -153,7 +162,7 @@ class raffleNumbersControllers {
 
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
-                attributes: ['id', 'number', 'status'],
+                attributes: ['id', 'number', 'status', 'firstName',  'lastName'],
                 include: [paymentInclude],
                 limit: limitNumber,
                 offset,
@@ -202,10 +211,17 @@ class raffleNumbersControllers {
             filter.raffleId = req.raffle.id
 
             if (search) {
-                filter[Op.or] = [
-                    { identificationNumber:  { [Op.eq]: search }},
-                    { number: { [Op.eq]: +search } }, 
-                ];
+                const searchConditions = [];
+                
+                // Si search es numérico, buscar por número
+                if (!isNaN(Number(search))) {
+                    searchConditions.push({ number: { [Op.eq]: +search } });
+                }
+                
+                // Siempre buscar por identificationNumber
+                searchConditions.push({ identificationNumber: { [Op.eq]: search } });
+                
+                filter[Op.or] = searchConditions;
             }
 
             // Filtro por monto/deuda (paymentDue)
@@ -244,6 +260,73 @@ class raffleNumbersControllers {
                 raffleNumbers,
                 count
             });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
+    static getRaffleNumbersPendingSell = async (req:Request, res: Response) => {
+        const parsed = raffleNumbersIdsShema.safeParse(req.body)
+        try {
+            if (!parsed.success) {
+                res.status(400).json({ error: parsed.error })
+                return
+            }
+
+            const { raffleNumbersIds } = parsed.data
+
+            const raffleNumbers = await RaffleNumbers.findAll({
+                attributes: ['id', 'number', 'status', 'paymentDue', 'firstName', 'lastName', 'phone', 'address'],
+                where: {
+                    id: {
+                        [Op.in]: raffleNumbersIds
+                    },
+                    status: 'pending'
+                }
+            })
+
+            // Validar que el número de IDs enviados coincida con los números encontrados
+            if (raffleNumbers.length !== raffleNumbersIds.length) {
+                res.status(400).json({ 
+                    error: ` Algunos números no existen o no están en estado pendiente.`
+                })
+                return
+            }
+
+            // Validar que todos los números tengan los mismos datos
+            if (raffleNumbers.length > 1) {
+                const firstNumber = raffleNumbers[0];
+                const firstData = {
+                    status: firstNumber.status,
+                    firstName: firstNumber.firstName,
+                    lastName: firstNumber.lastName,
+                    phone: firstNumber.phone,
+                    address: firstNumber.address
+                };
+
+                for (let i = 1; i < raffleNumbers.length; i++) {
+                    const currentNumber = raffleNumbers[i];
+                    const currentData = {
+                        status: currentNumber.status,
+                        firstName: currentNumber.firstName,
+                        lastName: currentNumber.lastName,
+                        phone: currentNumber.phone,
+                        address: currentNumber.address
+                    };
+
+                    // Comparar cada campo
+                    if (JSON.stringify(firstData) !== JSON.stringify(currentData)) {
+                        res.status(400).json({ 
+                            error: `Los números de rifa no tienen datos consistentes. El número ${currentNumber.number} tiene datos diferentes al primer número.`
+                        })
+                        return
+                    }
+                }
+            }
+
+            res.json(raffleNumbers)
+
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
