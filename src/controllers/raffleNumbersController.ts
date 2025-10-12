@@ -91,7 +91,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100, paymentMethod} = req.query
+        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100, paymentMethod, startDate, endDate} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -141,7 +141,7 @@ class raffleNumbersControllers {
                 filter.paymentAmount = { [Op.lte]: Number(amount) };
             }
 
-            // Configurar include para payments con filtro de paymentMethod si se especifica
+            // Configurar include para payments con filtro de paymentMethod y/o fechas
             const paymentInclude: any = {
                 model: Payment,
                 as: 'payments',
@@ -150,12 +150,28 @@ class raffleNumbersControllers {
                 order: [['createdAt', 'ASC']],
             };
 
-            // Si se especifica paymentMethod, filtrar solo números con al menos un pago de ese método
+            // Configurar filtros para payments
+            const paymentWhere: any = {};
+
+            // Si se especifica paymentMethod, filtrar por método de pago
             if (paymentMethod) {
-                paymentInclude.where = {
-                    paymentMethod: paymentMethod,
-                    isValid: true
+                paymentWhere.paymentMethod = paymentMethod;
+                paymentWhere.isValid = true;
+            }
+
+            // Si se especifican ambas fechas, filtrar por rango de fechas
+            if (startDate && endDate) {
+                const startDateFormatted = `${startDate} 00:00:00`;
+                const endDateFormatted = `${endDate} 23:59:59`;
+                
+                paymentWhere.createdAt = {
+                    [Op.between]: [startDateFormatted, endDateFormatted]
                 };
+            }
+
+            // Si hay filtros de payments, aplicarlos
+            if (Object.keys(paymentWhere).length > 0) {
+                paymentInclude.where = paymentWhere;
                 paymentInclude.required = true;
                 paymentInclude.separate = false; // Cambiar a false para que funcione el required
             }
@@ -183,7 +199,7 @@ class raffleNumbersControllers {
     }
     
     static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, paymentMethod, apartado} = req.query
+        const {search, amount, available, sold, pending, paymentMethod, apartado,  startDate, endDate} = req.query
         // console.log('exelfiilter', paymentMethod);
         
         try {
@@ -229,18 +245,35 @@ class raffleNumbersControllers {
                 filter.paymentAmount = { [Op.lte]: Number(amount) };
             }
 
-            // Configurar include para payments con filtro de paymentMethod si se especifica
+            // Configurar include para payments con filtro de paymentMethod y/o fechas
             const includeOptions: any[] = [];
             
+            // Configurar filtros para payments
+            const paymentWhere: any = {};
+
+            // Si se especifica paymentMethod, filtrar por método de pago
             if (paymentMethod) {
+                paymentWhere.paymentMethod = paymentMethod;
+                paymentWhere.isValid = true;
+            }
+
+            // Si se especifican ambas fechas, filtrar por rango de fechas
+            if (startDate && endDate) {
+                const startDateFormatted = `${startDate} 00:00:00`;
+                const endDateFormatted = `${endDate} 23:59:59`;
+                
+                paymentWhere.createdAt = {
+                    [Op.between]: [startDateFormatted, endDateFormatted]
+                };
+            }
+
+            // Si hay filtros de payments, aplicarlos
+            if (Object.keys(paymentWhere).length > 0) {
                 includeOptions.push({
                     model: Payment,
                     as: 'payments',
                     attributes: [],
-                    where: {
-                        paymentMethod: paymentMethod,
-                        isValid: true
-                    },
+                    where: paymentWhere,
                     required: true
                 });
             }
@@ -484,7 +517,7 @@ class raffleNumbersControllers {
                     // Distribución equitativa del abono entre todos los números pendientes
                     const baseAmount = Math.floor((amount * 100) / raffleNumbers.length) / 100; // Cantidad base por número
                     const remainderCents = Math.round((amount - (baseAmount * raffleNumbers.length)) * 100); // Centavos restantes
-                    
+
                     // Crear pagos con distribución equitativa
                     const distributedPayments = raffleNumbers.map((raffleNumber, index) => {
                         let distributedAmount = baseAmount;
