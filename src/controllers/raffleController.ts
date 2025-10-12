@@ -117,8 +117,19 @@ class raffleController {
 
     static getRaffleShared = async (req: Request, res: Response) => {
         try {
+            // Contar la cantidad total de números de esta rifa
+            const totalNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id
+                }
+            });
+
+            const raffleWithTotal = {
+                ...req.raffle.toJSON(),
+                totalNumbers
+            };
             
-            res.json(req.raffle)
+            res.json(raffleWithTotal)
 
         } catch (error) {
             console.log(error);
@@ -139,7 +150,20 @@ class raffleController {
                 ]
             })
 
-            res.json(raffle)
+            // Contar la cantidad total de números de esta rifa
+            const totalNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id
+                }
+            });
+
+            // Agregar el contador al objeto raffle
+            const raffleWithCount = {
+                ...raffle.toJSON(),
+                totalNumbers
+            };
+
+            res.json(raffleWithCount)
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
