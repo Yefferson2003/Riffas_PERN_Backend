@@ -48,7 +48,7 @@ router.get('/:raffleId/exel-filter',
     raffleNumbersControllers.getRaffleNumbersForExelFilter
 )
 
-router.get('/:raffleId/number/sell-numbers',
+router.get('/:raffleId/number/pending-numbers',
     authenticate,
     validateIdParam('raffleId'),
     validateSchema(raffleNumbersIdsShema),

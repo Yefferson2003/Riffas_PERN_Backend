@@ -143,7 +143,7 @@ export const amountRaffleNumberSchema = z.object({
     amount : z
         .number(),
         // .positive({ message: 'El valor debe ser mayor a cero.' })
-    paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
+    // paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
 })
 
 export const validateRaffleNumbersStatus = async (req: Request, res: Response, next: NextFunction) => {
