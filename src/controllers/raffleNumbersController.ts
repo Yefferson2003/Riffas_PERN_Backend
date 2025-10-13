@@ -246,7 +246,8 @@ class raffleNumbersControllers {
             }
 
             // Configurar include para payments con filtro de paymentMethod y/o fechas
-            const includeOptions: any[] = [];
+            const includeOptions: any[] = [
+            ];
             
             // Configurar filtros para payments
             const paymentWhere: any = {};
@@ -267,24 +268,36 @@ class raffleNumbersControllers {
                 };
             }
 
+            paymentWhere.isValid == true
+
             // Si hay filtros de payments, aplicarlos
             if (Object.keys(paymentWhere).length > 0) {
                 includeOptions.push({
                     model: Payment,
                     as: 'payments',
-                    attributes: [],
+                    attributes: ['id','amount', 'createdAt', 'paymentMethod', 'isValid'], // Incluir valores para sumatorias
                     where: paymentWhere,
-                    required: true
                 });
             }
 
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status', 'paymentAmount', 'paymentDue', 'phone', 'firstName', 'lastName'],
-                include: includeOptions,
+                include: [
+                    {
+                        model: Payment,
+                        required: !!paymentMethod || (!!startDate && !!endDate),
+                        as: 'payments',
+                        attributes: ['id','amount', 'createdAt', 'paymentMethod', 'isValid'], // Incluir valores para sumatorias
+                        where: paymentWhere,
+                    }
+                ],
                 order: [['number', 'ASC']],
-                distinct: paymentMethod ? true : false, // Evitar duplicados cuando hay filtro de método de pago
+                
+                distinct: true // Evitar duplicados cuando hay filtro de método de pago
             })
+            // console.log('getRaffleNumbersForExelFilter', raffleNumbers.map(rn => rn.payments));
+            
 
             res.json({
                 userName: req.user.dataValues.firstName,
