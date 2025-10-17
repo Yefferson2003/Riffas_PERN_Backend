@@ -174,6 +174,7 @@ class raffleNumbersControllers {
                 const userExist = await User.findByPk(userId as string);
                 if (userExist) {
                     paymentWhere.userId = userId;
+                    paymentWhere.isValid = true;
                 }
             }
 
@@ -281,6 +282,7 @@ class raffleNumbersControllers {
                 const userExist = await User.findByPk(userId as string);
                 if (userExist) {
                     paymentWhere.userId = userId;
+                    paymentWhere.isValid = true;
                 }
             }
 
