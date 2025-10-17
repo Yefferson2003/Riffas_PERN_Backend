@@ -42,7 +42,7 @@ router.get('/:raffleId/exel',
 )
 router.get('/:raffleId/exel-filter',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateIdParam('raffleId'),
     raffleExists,
     raffleNumbersControllers.getRaffleNumbersForExelFilter
