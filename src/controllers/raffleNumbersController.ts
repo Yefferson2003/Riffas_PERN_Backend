@@ -145,7 +145,7 @@ class raffleNumbersControllers {
             const paymentInclude: any = {
                 model: Payment,
                 as: 'payments',
-                attributes: ['userId', 'createdAt', 'paymentMethod'], 
+                attributes: ['userId', 'createdAt', 'paymentMethod','isValid'], 
                 separate: true, 
                 order: [['createdAt', 'ASC']],
             };
