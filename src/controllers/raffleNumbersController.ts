@@ -91,7 +91,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100, paymentMethod, startDate, endDate} = req.query
+        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100, paymentMethod, startDate, endDate, userId} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -169,6 +169,14 @@ class raffleNumbersControllers {
                 };
             }
 
+            // si se especifica userId, filtrar por usuario
+            if (userId) {
+                const userExist = await User.findByPk(userId as string);
+                if (userExist) {
+                    paymentWhere.userId = userId;
+                }
+            }
+
             // Si hay filtros de payments, aplicarlos
             if (Object.keys(paymentWhere).length > 0) {
                 paymentInclude.where = paymentWhere;
@@ -199,7 +207,7 @@ class raffleNumbersControllers {
     }
     
     static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, paymentMethod, apartado,  startDate, endDate} = req.query
+        const {search, amount, available, sold, pending, paymentMethod, apartado,  startDate, endDate, userId} = req.query
         // console.log('exelfiilter', paymentMethod);
         
         try {
@@ -268,7 +276,17 @@ class raffleNumbersControllers {
                 };
             }
 
+            // si se especifica userId, filtrar por usuario
+            if (userId) {
+                const userExist = await User.findByPk(userId as string);
+                if (userExist) {
+                    paymentWhere.userId = userId;
+                }
+            }
+
             paymentWhere.isValid == true
+
+            
 
             // Si hay filtros de payments, aplicarlos
             if (Object.keys(paymentWhere).length > 0) {
@@ -280,16 +298,19 @@ class raffleNumbersControllers {
                 });
             }
 
+
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
                 attributes: ['id', 'number', 'status', 'paymentAmount', 'paymentDue', 'phone', 'firstName', 'lastName'],
                 include: [
                     {
                         model: Payment,
-                        required: !!paymentMethod || (!!startDate && !!endDate),
+                        required: !!paymentMethod || (!!startDate && !!endDate) || !!userId,
                         as: 'payments',
                         attributes: ['id','amount', 'createdAt', 'paymentMethod', 'isValid'], // Incluir valores para sumatorias
                         where: paymentWhere,
+                        // required: Object.keys(paymentWhere).length > 0,
+                        separate: false // Cambiar a false para que funcione el required
                     }
                 ],
                 order: [['number', 'ASC']],

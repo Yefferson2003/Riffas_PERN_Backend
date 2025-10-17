@@ -5,6 +5,7 @@ import { Server } from "socket.io";
 import { corsConfig } from "./config/cors";
 import connectDB from "./config/db";
 import router from "./routes/index.routes";
+// import { initializeData } from './config/initializeData';
 
 connectDB();
 // initializeData()
