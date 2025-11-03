@@ -1,7 +1,6 @@
 import { NextFunction, Request, Response } from "express";
 import { z } from 'zod';
 import RaffleNumbers, { identificationTypeEnum } from '../models/raffle_numbers';
-import { paymentMethodEnum } from "../models/payment";
 
 export const createRifaSchema = z.object({
     name: z
@@ -115,7 +114,12 @@ export const sellRaffleNumbersSchema = z.object({
         .number()
         .min(1, { message: "El monto no puede ser 0" })
         .optional(),
-    paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
+    paymentMethod: z
+        .number({ message: "El método de pago debe ser un número." })
+        .int({ message: "El método de pago debe ser un número entero." })
+        .positive({ message: "El método de pago debe ser un ID válido mayor a 0." }),
+    reference: z.string().optional()
+
 })
 
 export const amountRaffleNumberSchema = z.object({
@@ -145,7 +149,51 @@ export const amountRaffleNumberSchema = z.object({
     amount : z
         .number(),
         // .positive({ message: 'El valor debe ser mayor a cero.' })
-    // paymentMethod: z.enum(paymentMethodEnum, { message: "El método de pago es obligatorio." })
+    paymentMethod: z
+        .number({ message: "El método de pago debe ser un número." })
+        .int({ message: "El método de pago debe ser un número entero." })
+        .positive({ message: "El método de pago debe ser un ID válido mayor a 0." }),
+    reference: z
+        .string()
+        .optional()
+})
+
+export const amountRaffleNumberSharedSchema = z.object({
+    raffleNumbersIds: z
+        .array(z.number().int().positive()),
+    firstName: z
+        .string()
+        .min(1, "El nombre es obligatorio")
+        .max(50, "El nombre no debe exceder 50 caracteres"),
+    lastName: z
+        .string()
+        .min(1, "El apellido es obligatorio")
+        .max(50, "El apellido no debe exceder 50 caracteres"),
+    // identificationType: z.enum(identificationTypeEnum, {
+    //     required_error: "El tipo de identificación es obligatorio",
+    // }),
+    // identificationNumber: z
+    //     .string()
+    //     .regex(/^\d+$/, "El número de identificación debe contener solo dígitos")
+    //     .min(6, "El número de identificación debe tener al menos 6 dígitos")
+    //     .max(20, "El número de identificación no debe exceder 20 dígitos"),
+    phone: z
+        .string()
+        .min(1, "Teléfono obligatorio"),
+    address: z
+        .string()
+        .min(5, "La dirección es obligatoria y debe tener al menos 5 caracteres")
+        .max(100, "La dirección no debe exceder 100 caracteres"),
+    amount : z
+        .number(),
+        // .positive({ message: 'El valor debe ser mayor a cero.' })
+    paymentMethod: z
+        .number({ message: "El método de pago debe ser un número." })
+        .int({ message: "El método de pago debe ser un número entero." })
+        .positive({ message: "El método de pago debe ser un ID válido mayor a 0." }),
+    reference: z
+        .string()
+        .optional()
 })
 
 export const validateRaffleNumbersStatus = async (req: Request, res: Response, next: NextFunction) => {

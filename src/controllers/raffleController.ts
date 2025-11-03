@@ -9,6 +9,8 @@ import UserRifa from '../models/user_raffle';
 import { v4 as uuidv4 } from "uuid";
 import SharedLink from '../models/sharedLink';
 import slugify from 'slugify';
+import PayMethode from '../models/payMethode';
+import RafflePayMethode from '../models/rafflePayMethode';
 
 class raffleController {
 
@@ -219,6 +221,48 @@ class raffleController {
             
             
             await RaffleNumbers.bulkCreate(numbers);
+
+            // Buscar o crear el método de pago "Efectivo"
+            let efectivoPayMethod = await PayMethode.findOne({
+                where: {
+                    name: 'efectivo'
+                }
+            });
+
+            if (!efectivoPayMethod) {
+                efectivoPayMethod = await PayMethode.create({
+                    name: 'efectivo',
+                    isActive: true
+                });
+            }
+
+            // Buscar o crear el método de pago "Apartado"
+            let apartadoPayMethod = await PayMethode.findOne({
+                where: {
+                    name: 'apartado'
+                }
+            });
+
+            if (!apartadoPayMethod) {
+                apartadoPayMethod = await PayMethode.create({
+                    name: 'apartado',
+                    isActive: true
+                });
+            }
+
+            // Crear las asignaciones de los métodos de pago a la rifa
+            await RafflePayMethode.bulkCreate([
+                {
+                    raffleId: raffle.id,
+                    payMethodeId: efectivoPayMethod.id,
+                    isActive: true,
+                },
+                {
+                    raffleId: raffle.id,
+                    payMethodeId: apartadoPayMethod.id,
+                    isActive: true,
+                }
+            ]);
 
             res.status(201).send('Rifa creada correctamente')
         } catch (error) {

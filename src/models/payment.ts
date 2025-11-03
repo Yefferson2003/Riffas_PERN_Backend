@@ -1,6 +1,8 @@
 import { BelongsTo, Column, DataType, Default, ForeignKey, Model, Table } from "sequelize-typescript";
 import RaffleNumbers from "./raffle_numbers";
 import User from "./user";
+import PayMethode from "./payMethode";
+import RafflePayMethode from "./rafflePayMethode";
 
 export const paymentMethodEnum = [
     'Efectivo', 
@@ -45,10 +47,16 @@ class Payment extends Model {
     })
     riffleNumberId: number
 
+    @Column({
+        type: DataType.STRING,
+        allowNull: true
+    })
+    reference: string
+
     @ForeignKey(() => User)
     @Column({
         type: DataType.INTEGER,
-        allowNull: false
+        allowNull: true
     })
     userId: number
 
@@ -67,13 +75,23 @@ class Payment extends Model {
     })
     user: User
 
-    @Default('Efectivo')
+    @ForeignKey(() => RafflePayMethode)
     @Column({
-        type: DataType.ENUM(...paymentMethodEnum),
-        allowNull: true,
-        defaultValue: 'Efectivo'
+        type: DataType.INTEGER,
+        allowNull: true
     })
-    paymentMethod: string
+    paymentMethodId: number
+
+    @BelongsTo(() => RafflePayMethode)
+    rafflePayMethode: RafflePayMethode
+
+    // @Default('Efectivo')
+    // @Column({
+    //     type: DataType.ENUM(...paymentMethodEnum),
+    //     allowNull: true,
+    //     defaultValue: 'Efectivo'
+    // })
+    // paymentMethod: string
 
 }
 

@@ -4,7 +4,9 @@ import Payment from '../models/payment';
 import RaffleNumbers from '../models/raffle_numbers';
 import Rol from '../models/rol';
 import User from '../models/user';
-import { raffleNumbersIdsShema } from '../middlewares/validateRaffle';
+import { amountRaffleNumberSchema, amountRaffleNumberSharedSchema, raffleNumbersIdsShema, sellRaffleNumbersSchema } from '../middlewares/validateRaffle';
+import RafflePayMethode from '../models/rafflePayMethode';
+import PayMethode from '../models/payMethode';
 
 export function formatPostgresDateToReadable(dateString: string): string {
     const date = new Date(dateString);
@@ -26,17 +28,22 @@ export function formatPostgresDateToReadable(dateString: string): string {
 class raffleNumbersControllers {
 
     static getRaffleNumbersShared = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, page = 1, limit = 100} = req.query
+        const {search, amount, available, sold, pending, page = 1, limit = 100,} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
+
+        console.log('...............................', search);
+        
 
         try {
 
             const filter : any = {}
 
             filter.raffleId = req.raffle.id
+
+            filter.status = 'available'
 
             // if (available && !sold && !pending) {
             //     filter.status = 'available'
@@ -49,12 +56,9 @@ class raffleNumbersControllers {
             // }
 
 
-            // if (search) {
-            //     filter[Op.or] = [
-            //         { identificationNumber:  { [Op.eq]: search }},
-            //         { number: { [Op.eq]: +search } }, 
-            //     ];
-            // }
+            if (search) {
+                filter.number = { [Op.eq]: +search };
+            }
 
             // // Filtro por monto/deuda (paymentDue)
             // if (amount && !isNaN(Number(amount))) {
@@ -101,6 +105,23 @@ class raffleNumbersControllers {
 
             const filter : any = {}
 
+            let rafflePayMethodeExits = null;
+
+            // Solo validar el método de pago si se proporciona
+            if (paymentMethod) {
+                rafflePayMethodeExits = await RafflePayMethode.findOne({
+                    where: {
+                        id: paymentMethod,
+                        raffleId: req.raffle.id
+                    }
+                });
+                
+                if (!rafflePayMethodeExits) {
+                    res.status(400).json({ error: 'El método de pago no es válido para esta rifa.' });
+                    return;
+                }
+            }
+
             if (available && !sold && !pending) {
                 filter.status = 'available'
             }
@@ -145,7 +166,7 @@ class raffleNumbersControllers {
             const paymentInclude: any = {
                 model: Payment,
                 as: 'payments',
-                attributes: ['userId', 'createdAt', 'paymentMethod','isValid'], 
+                attributes: ['userId', 'createdAt','isValid'], 
                 separate: true, 
                 order: [['createdAt', 'ASC']],
             };
@@ -154,8 +175,8 @@ class raffleNumbersControllers {
             const paymentWhere: any = {};
 
             // Si se especifica paymentMethod, filtrar por método de pago
-            if (paymentMethod) {
-                paymentWhere.paymentMethod = paymentMethod;
+            if (paymentMethod && rafflePayMethodeExits) {
+                paymentWhere.paymentMethodId = rafflePayMethodeExits.id;
                 paymentWhere.isValid = true;
             }
 
@@ -228,8 +249,23 @@ class raffleNumbersControllers {
                 filter.status = 'apartado'
             }
 
+            let rafflePayMethodeExits = null;
+            if (paymentMethod) {
+                rafflePayMethodeExits = await RafflePayMethode.findOne({
+                    where: {
+                        id: paymentMethod,
+                        raffleId: req.raffle.id
+                    }
+                });
+                
+                if (!rafflePayMethodeExits) {
+                    res.status(400).json({ error: 'El método de pago no es válido para esta rifa.' });
+                    return;
+                }
+            }
+
             // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
-            if (paymentMethod && !available && !sold && !pending) {
+            if (rafflePayMethodeExits && !available && !sold && !pending) {
                 filter.status = { [Op.ne]: 'available' };
             }
 
@@ -262,8 +298,8 @@ class raffleNumbersControllers {
             const paymentWhere: any = {};
 
             // Si se especifica paymentMethod, filtrar por método de pago
-            if (paymentMethod) {
-                paymentWhere.paymentMethod = paymentMethod;
+            if (rafflePayMethodeExits) {
+                paymentWhere.paymentMethodId = rafflePayMethodeExits.id;
                 paymentWhere.isValid = true;
             }
 
@@ -295,7 +331,7 @@ class raffleNumbersControllers {
                 includeOptions.push({
                     model: Payment,
                     as: 'payments',
-                    attributes: ['id','amount', 'createdAt', 'paymentMethod', 'isValid'], // Incluir valores para sumatorias
+                    attributes: ['id','amount', 'createdAt', 'isValid'], // Incluir valores para sumatorias
                     where: paymentWhere,
                 });
             }
@@ -307,9 +343,23 @@ class raffleNumbersControllers {
                 include: [
                     {
                         model: Payment,
-                        required: !!paymentMethod || (!!startDate && !!endDate) || !!userId,
+                        required: !!rafflePayMethodeExits || (!!startDate && !!endDate) || !!userId,
                         as: 'payments',
-                        attributes: ['id','amount', 'createdAt', 'paymentMethod', 'isValid'], // Incluir valores para sumatorias
+                        attributes: ['id','amount', 'createdAt', 'isValid', 'reference'], // Incluir reference
+                        include: [
+                            {
+                                model: RafflePayMethode,
+                                as: 'rafflePayMethode',
+                                attributes: ['id', 'accountNumber', 'accountHolder', 'bankName'],
+                                include: [
+                                    {
+                                        model: PayMethode,
+                                        as: 'payMethode',
+                                        attributes: ['name', 'id', 'isActive']
+                                    }
+                                ]
+                            }
+                        ],
                         where: paymentWhere,
                         // required: Object.keys(paymentWhere).length > 0,
                         separate: false // Cambiar a false para que funcione el required
@@ -421,12 +471,24 @@ class raffleNumbersControllers {
                     {
                         model: Payment,
                         as: 'payments',
-                        attributes: ['amount', 'isValid', 'createdAt'], // Asegúrate de incluir el campo de fecha
+                        attributes: ['amount', 'isValid', 'createdAt', 'reference'], // Asegúrate de incluir el campo de fecha
                         include: [
                             {
                                 model: User,
                                 as: 'user',
                                 attributes: ['firstName', 'lastName', 'identificationNumber']
+                            },
+                            {
+                                model: RafflePayMethode,
+                                as: 'rafflePayMethode',
+                                attributes: ['id', 'accountNumber', 'accountHolder', 'bankName'],
+                                include: [
+                                    {
+                                        model: PayMethode,
+                                        as: 'payMethode',
+                                        attributes: ['name', 'id', 'isActive']
+                                    }
+                                ]
                             }
                         ],
                         order: [['createdAt', 'ASC']], // Orden por fecha ascendente (más vieja al inicio)
@@ -464,6 +526,18 @@ class raffleNumbersControllers {
                                 model: User,
                                 as: 'user',
                                 attributes: ['firstName','lastName', 'identificationNumber']
+                            },
+                            {
+                                model: RafflePayMethode,
+                                as: 'rafflePayMethode',
+                                attributes: ['id', 'accountNumber', 'accountHolder', 'bankName'],
+                                include: [
+                                    {
+                                        model: PayMethode,
+                                        as: 'payMethode',
+                                        attributes: ['name', 'id', 'isActive']
+                                    }
+                                ]
                             }
                         ]
                     },
@@ -486,7 +560,16 @@ class raffleNumbersControllers {
     }
 
     static sellRaffleNumbers = async (req: Request, res: Response) => {
-        const {raffleNumbersIds, firstName, lastName, phone, address, amount, paymentMethod} = req.body
+        
+        const parsed = sellRaffleNumbersSchema.safeParse(req.body)
+
+        if (!parsed.success) {
+            res.status(400).json({ error: 'Datos inválidos' })
+            return
+        }
+
+        const {raffleNumbersIds, firstName, lastName, phone, address, amount, paymentMethod, reference} = parsed.data
+
         const {separar, descuento} = req.query
         const fechaActual: Date = new Date();
 
@@ -532,6 +615,37 @@ class raffleNumbersControllers {
             // Validar el estado de los números - Abonar varios números pendientes
             const allPending = raffleNumbers.every(num => num.dataValues.status === 'pending');
 
+            // Verificar que el método de pago exista
+            const paymentMethodExiste = await RafflePayMethode.findByPk(paymentMethod)
+
+             // Buscar o crear el método de pago "Efectivo"
+            let efectivoPayMethod = await PayMethode.findOne({
+                where: {
+                    name: 'efectivo'
+                }
+            });
+
+            if (!efectivoPayMethod) {
+                efectivoPayMethod = await PayMethode.create({
+                    name: 'efectivo',
+                    isActive: true
+                });
+            }
+
+            // Buscar o crear el método de pago "Apartado"
+            let apartadoPayMethod = await PayMethode.findOne({
+                where: {
+                    name: 'apartado'
+                }
+            });
+
+            if (!apartadoPayMethod) {
+                apartadoPayMethod = await PayMethode.create({
+                    name: 'apartado',
+                    isActive: true
+                });
+            }
+
             // Si todos los números son pendientes, procesar distribución equitativa y terminar
             if (allPending) {
                 const totalPaymentDue = raffleNumbers.reduce((sum, num) => sum + (num.dataValues.paymentDue || 0), 0);
@@ -567,7 +681,8 @@ class raffleNumbersControllers {
                             amount: distributedAmount,
                             paidAt: fechaActual,
                             userId: req.user.id,
-                            paymentMethod
+                            paymentMethodId: paymentMethodExiste.id,
+                            reference: reference || null
                         };
                     });
     
@@ -701,7 +816,8 @@ class raffleNumbersControllers {
                             amount: validAmount,
                             paidAt: fechaActual,
                             userId: req.user.id,
-                            paymentMethod
+                            paymentMethodId: paymentMethodExiste.id,
+                            reference: reference || null
                         };
                     });
 
@@ -777,7 +893,8 @@ class raffleNumbersControllers {
                 amount: separar ? 0 : (descuento ? amount : req.raffle.dataValues.price),
                 paidAt: separar ? undefined : fechaActual,
                 userId: req.user.id,
-                paymentMethod: separar ? ( descuento ? paymentMethod : 'Apartado') : paymentMethod
+                paymentMethodId: separar ? ( descuento ? paymentMethod : apartadoPayMethod.id) : paymentMethodExiste.id,
+                reference: separar ? undefined : (reference || null)
             }));
 
             // Crear todos los pagos en lote
@@ -856,8 +973,18 @@ class raffleNumbersControllers {
     }
 
     static amountRaffleNumber = async (req: Request, res: Response) => {
-        const { firstName, lastName, phone, address, amount, paymentMethod} = req.body
+
+        const parsed = amountRaffleNumberSchema.safeParse(req.body);
+
+        if (!parsed.success) {
+            res.status(400).json({ error: parsed.error });
+            return;
+        }
+
+        const { firstName, lastName, phone, address, amount, paymentMethod, reference} = parsed.data
+        
         const {descuento} = req.query
+
         const fechaActual: Date = new Date();
         try {
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
@@ -872,6 +999,36 @@ class raffleNumbersControllers {
                 return
             }
             
+            // Verificar que el método de pago exista
+            const paymentMethodExiste = await RafflePayMethode.findByPk(paymentMethod)
+
+             // Buscar o crear el método de pago "Efectivo"
+            let efectivoPayMethod = await PayMethode.findOne({
+                where: {
+                    name: 'efectivo'
+                }
+            });
+
+            if (!efectivoPayMethod) {
+                efectivoPayMethod = await PayMethode.create({
+                    name: 'efectivo',
+                    isActive: true
+                });
+            }
+
+            // Buscar o crear el método de pago "Apartado"
+            let apartadoPayMethod = await PayMethode.findOne({
+                where: {
+                    name: 'apartado'
+                }
+            });
+
+            if (!apartadoPayMethod) {
+                apartadoPayMethod = await PayMethode.create({
+                    name: 'apartado',
+                    isActive: true
+                });
+            }
 
             const raffleNumbersStatus = req.raffleNumber.dataValues.status
 
@@ -939,7 +1096,8 @@ class raffleNumbersControllers {
                         amount: amount,
                         paidAt: fechaActual,
                         userId: req.user.id,
-                        paymentMethod
+                        paymentMethodId: paymentMethodExiste.id,
+                        reference: reference || null
                     })
 
                     await req.raffleNumber.update({
@@ -965,7 +1123,8 @@ class raffleNumbersControllers {
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
                         userId: req.user.id,
-                        paymentMethod
+                        paymentMethodId: paymentMethodExiste.id,
+                        reference: reference || null
                     })
 
                     await req.raffleNumber.update({
@@ -1012,7 +1171,8 @@ class raffleNumbersControllers {
                         amount: amount,
                         paidAt: fechaActual,
                         userId: req.user.id,
-                        paymentMethod
+                        paymentMethodId: paymentMethodExiste.id,
+                        reference: reference || null
                     })
 
                     await req.raffleNumber.update({
@@ -1030,7 +1190,8 @@ class raffleNumbersControllers {
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
                         userId: req.user.id,
-                        paymentMethod: amountZero ? 'Apartado' : paymentMethod
+                        paymentMethodId: amountZero ? apartadoPayMethod.id : paymentMethodExiste.id,
+                        reference: amountZero ? null : reference || null
                     })
                     
 
@@ -1050,7 +1211,8 @@ class raffleNumbersControllers {
                         amount: 0,
                         // paidAt: fechaActual,
                         userId: req.user.id,
-                        paymentMethod: 'Apartado'
+                        paymentMethodId: apartadoPayMethod.id,
+                        reference: reference || null
                     })
 
                     await req.raffleNumber.update({
@@ -1103,7 +1265,14 @@ class raffleNumbersControllers {
     }
     
     static amountRaffleNumberShared = async (req: Request, res: Response) => {
-        const { firstName, lastName, phone, address, amount } = req.body;
+
+        const parsed = amountRaffleNumberSharedSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ error: 'Datos Invalidos' });
+            return;
+        }
+
+        const { firstName, lastName, phone, address, amount, paymentMethod, reference, raffleNumbersIds} = parsed.data;
         const fechaActual: Date = new Date();
 
         try {
@@ -1115,21 +1284,83 @@ class raffleNumbersControllers {
             }
 
             if (amount !== 0) {
-                const error = new Error("El valor debe ser 0 para apartar el número.");
+                const error = new Error("El valor debe ser 0 para apartar números.");
                 res.status(422).json({ error: error.message });
                 return;
             }
 
-            if (!req.raffleNumber) {
-                const error = new Error("Número de rifa no encontrado");
+            // Validar que el array de IDs no esté vacío
+            if (!Array.isArray(raffleNumbersIds) || raffleNumbersIds.length === 0) {
+                const error = new Error("Debe seleccionar al menos un número para apartar");
+                res.status(400).json({ error: error.message });
+                return;
+            }
+
+            // Validar que el método de pago exista
+            const paymentMethodExiste = await RafflePayMethode.findByPk(paymentMethod);
+            if (!paymentMethodExiste) {
+                const error = new Error("Método de pago no encontrado");
                 res.status(404).json({ error: error.message });
                 return;
             }
 
-            const raffleNumbersStatus = req.raffleNumber.dataValues.status;
+            // // Buscar o crear el método de pago "Apartado"
+            // let apartadoPayMethod = await PayMethode.findOne({
+            //     where: {
+            //         name: 'apartado'
+            //     }
+            // });
 
-            if (raffleNumbersStatus === "available") {
-                await req.raffleNumber.update({
+            // if (!apartadoPayMethod) {
+            //     apartadoPayMethod = await PayMethode.create({
+            //         name: 'apartado',
+            //         isActive: true
+            //     });
+            // }
+
+            // Buscar y validar todos los números de rifa
+            const raffleNumbers = await RaffleNumbers.findAll({
+                where: {
+                    id: raffleNumbersIds,
+                    raffleId: req.raffle.id
+                },
+                attributes: ['id', 'number', 'status']
+            });
+
+            // Validar que se encontraron todos los números solicitados
+            if (raffleNumbers.length !== raffleNumbersIds.length) {
+                const foundIds = raffleNumbers.map(rn => rn.id);
+                const missingIds = raffleNumbersIds.filter(id => !foundIds.includes(id));
+                const error = new Error(`Los siguientes números no existen o no pertenecen a esta rifa: ${missingIds.join(', ')}`);
+                res.status(404).json({ error: error.message });
+                return;
+            }
+
+            // Validar que todos los números estén disponibles
+            const unavailableNumbers = raffleNumbers.filter(rn => rn.dataValues.status !== 'available');
+            if (unavailableNumbers.length > 0) {
+                const unavailableNumbersList = unavailableNumbers.map(rn => rn.dataValues.number).join(', ');
+                const error = new Error(`Los siguientes números no están disponibles para apartar: ${unavailableNumbersList}`);
+                res.status(400).json({ error: error.message });
+                return;
+            }
+
+            // Crear datos de pagos para todos los números (pagos de apartado)
+            // Para usuarios no registrados (proceso compartido), userId será null
+            const paymentsData = raffleNumbers.map((raffleNumber) => ({
+                riffleNumberId: raffleNumber.id,
+                amount: 0,
+                userId: null, // null para usuarios no registrados
+                paymentMethodId: paymentMethodExiste.id,
+                reference: reference || null
+            }));
+
+            // Crear todos los pagos de apartado en lote
+            await Payment.bulkCreate(paymentsData);
+
+            // Actualizar todos los números a estado "apartado"
+            await RaffleNumbers.update(
+                {
                     status: "apartado", 
                     reservedDate: fechaActual,
                     firstName,
@@ -1138,35 +1369,41 @@ class raffleNumbersControllers {
                     address,
                     paymentAmount: 0, 
                     paymentDue: req.raffle.dataValues.price, 
-                });
+                },
+                {
+                    where: {
+                        id: raffleNumbersIds
+                    }
+                }
+            );
 
-                const raffleNumber = await RaffleNumbers.findOne({
-                    where: { id: req.raffleNumber.id },
-                    include: [
-                        {
-                            model: Payment,
-                            as: "payments",
-                            include: [
-                                {
-                                    model: User,
-                                    as: "user",
-                                    attributes: ["firstName", "lastName", "identificationNumber"],
-                                },
-                            ],
-                        },
-                    ],
-                });
+            // Obtener los números actualizados con sus pagos
+            const updatedRaffleNumbers = await RaffleNumbers.findAll({
+                where: { id: raffleNumbersIds },
+                include: [
+                    {
+                        model: Payment,
+                        as: "payments",
+                        include: [
+                            {
+                                model: User,
+                                as: "user",
+                                attributes: ["firstName", "lastName", "identificationNumber"],
+                                required: false, // Permitir que User sea null
+                            },
+                        ],
+                    },
+                ],
+                order: [['number', 'ASC']]
+            });
 
-                res.json([raffleNumber]);
-                req.app.get("io").emit("sellNumbers", {
-                    raffleId: req.raffle.id,
-                });
+            // Emitir evento de actualización
+            req.app.get("io").emit("sellNumbers", {
+                raffleId: req.raffle.id,
+            });
 
-                return;
-            }
-            
+            res.json(updatedRaffleNumbers);
 
-            res.status(400).json({ error: "El número no está disponible para apartar." });
         } catch (error) {
             console.log(error);
             res.status(500).json({ error: "Hubo un Error" });

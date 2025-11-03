@@ -3,7 +3,7 @@ import raffleNumbersControllers from "../controllers/raffleNumbersController";
 import { authenticate, authenticateSharedLink, checkRole, validateUserRaffle } from "../middlewares/auth";
 import { raffleExists, raffleNumberExists } from "../middlewares/model";
 import { validateIdParam, validateSchema } from "../middlewares/validateAuth";
-import { amountRaffleNumberSchema, raffleNumbersIdsShema, sellRaffleNumbersSchema, updateRaffleNumber, validateRaffleNumbersStatus } from "../middlewares/validateRaffle";
+import { amountRaffleNumberSchema, amountRaffleNumberSharedSchema, sellRaffleNumbersSchema, updateRaffleNumber, validateRaffleNumbersStatus } from "../middlewares/validateRaffle";
 
 const router = Router()
 
@@ -19,11 +19,9 @@ router.get('/shared',
     raffleNumbersControllers.getRaffleNumbersShared
 )
 
-router.post('/shared/amount-number/:raffleNumberId',
+router.post('/shared/amount-number/',
     authenticateSharedLink,
-    validateIdParam('raffleNumberId'),
-    validateSchema(amountRaffleNumberSchema),
-    raffleNumberExists,
+    validateSchema(amountRaffleNumberSharedSchema),
     raffleNumbersControllers.amountRaffleNumberShared
 )
 

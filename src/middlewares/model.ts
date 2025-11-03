@@ -6,6 +6,8 @@ import Raffle from "../models/raffle";
 import RaffleNumbers from "../models/raffle_numbers";
 import Expenses from "../models/expenses";
 import Awards from "../models/awards";
+import PayMethode from "../models/payMethode";
+import RafflePayMethode from "../models/rafflePayMethode";
 
 declare global { 
     namespace Express {
@@ -14,11 +16,13 @@ declare global {
             raffleNumber: RaffleNumbers
             expense: Expenses
             award: Awards
+            payMethod: PayMethode
+            rafflePayMethod: RafflePayMethode
         }
     }
 }
 
-const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards) {
+const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode) {
     if (!model) {
         const error = new Error('Elemento no Encontrado')
         res.status(404).json({error: error.message})
@@ -108,6 +112,30 @@ export async function awardExists(req:Request, res:Response, next:NextFunction) 
         })
         if (!elementExists(res, award)) return
         req.award = award
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+
+export const payMethodExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { payMethodId } = req.params
+        const payMethod = await PayMethode.findByPk(payMethodId)
+        if (!elementExists(res, payMethod)) return
+        req.payMethod = payMethod
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+
+export const rafflePayMethodExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { rafflePayMethodId } = req.params
+        const rafflePayMethod = await RafflePayMethode.findByPk(rafflePayMethodId)
+        if (!elementExists(res, rafflePayMethod)) return
+        req.rafflePayMethod = rafflePayMethod
         next()
     } catch (error) {
         res.status(500).json({error: 'Hubo un Error - models'})
