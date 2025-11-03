@@ -322,7 +322,7 @@ class raffleNumbersControllers {
                 }
             }
 
-            paymentWhere.isValid == true
+            // paymentWhere.isValid == true
 
             
 
@@ -332,10 +332,19 @@ class raffleNumbersControllers {
                     model: Payment,
                     as: 'payments',
                     attributes: ['id','amount', 'createdAt', 'isValid'], // Incluir valores para sumatorias
-                    where: paymentWhere,
+                    where: { 
+                        ...paymentWhere,
+                        isValid: true
+                    },
                 });
             }
 
+
+            // Siempre incluir el filtro de pagos válidos
+            const finalPaymentWhere = {
+                ...paymentWhere,
+                isValid: true
+            };
 
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
@@ -360,7 +369,7 @@ class raffleNumbersControllers {
                                 ]
                             }
                         ],
-                        where: paymentWhere,
+                        where: finalPaymentWhere, // Usar el filtro que siempre incluye isValid: true
                         // required: Object.keys(paymentWhere).length > 0,
                         separate: false // Cambiar a false para que funcione el required
                     }
