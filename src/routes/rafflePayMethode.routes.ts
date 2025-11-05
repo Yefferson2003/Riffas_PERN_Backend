@@ -12,7 +12,7 @@ router.get('/:raffleId/payment-methods',
     // authenticate,
     validateIdParam('raffleId'),
     raffleExists,
-    validateUserRaffle,
+    // validateUserRaffle,
     RafflePayMethodeController.getRafflePayMethods
 )
 
