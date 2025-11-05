@@ -9,7 +9,7 @@ const router = Router()
 
 // Obtener métodos de pago activos de una rifa específica
 router.get('/:raffleId/payment-methods',
-    authenticate,
+    // authenticate,
     validateIdParam('raffleId'),
     raffleExists,
     validateUserRaffle,
