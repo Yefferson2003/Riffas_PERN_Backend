@@ -78,6 +78,12 @@ class Raffle extends Model {
         type: DataType.STRING,
         allowNull: true
     })
+    contactRifero: string
+
+    @Column({
+        type: DataType.STRING,
+        allowNull: true
+    })
     color: string
 
     @HasMany(() => RaffleNumbers)

@@ -250,7 +250,7 @@ class raffleController {
     }
 
     static createRaffle = async (req : Request, res : Response) => {
-        const {name, nitResponsable, nameResponsable, description, startDate, playDate, price, banerImgUrl, quantity = 1000, banerMovileImgUrl, color} = req.body
+        const {name, nitResponsable, nameResponsable, description, startDate, playDate, price, banerImgUrl, quantity = 1000, banerMovileImgUrl, color, contactRifero} = req.body
         try {
 
             const editDate = new Date(playDate); 
@@ -267,7 +267,8 @@ class raffleController {
                 price,
                 banerImgUrl,
                 banerMovileImgUrl,
-                color
+                color,
+                contactRifero
             })
 
             if (req.user.dataValues.rol.dataValues.name === 'responsable') {
@@ -391,7 +392,7 @@ class raffleController {
 
 
     static updateRaffle = async (req : Request, res : Response) => {
-        const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate, banerMovileImgUrl, color} = req.body
+        const {name, description, banerImgUrl, nitResponsable, nameResponsable, startDate, playDate, editDate, banerMovileImgUrl, color, contactRifero} = req.body
         try {
             await req.raffle.update({
                 name,
@@ -403,7 +404,8 @@ class raffleController {
                 playDate,
                 editDate,
                 banerMovileImgUrl,
-                color
+                color,
+                contactRifero
             })
             res.send('Rifa actualizada correctamente')
         } catch (error) {

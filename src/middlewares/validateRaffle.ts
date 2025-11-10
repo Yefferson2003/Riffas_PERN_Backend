@@ -38,6 +38,9 @@ export const createRifaSchema = z.object({
         .int({ message: "La cantidad debe ser un número entero." })
         .min(1, { message: "La cantidad debe ser al menos 1." })
         .default(1000),
+        contactRifero: z
+            .string()
+            .optional(),
     color: z
         .string()
         .optional().
@@ -80,6 +83,9 @@ export const updateRifaSchema = z.object({
         .refine((val) => !isNaN(new Date(val).getTime()), {
             message: "La fecha de juego debe ser una fecha válida.",
         }),
+    contactRifero: z
+            .string()
+            .optional(),
     color: z
         .string()
         .optional(),
