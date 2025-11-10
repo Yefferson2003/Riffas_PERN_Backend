@@ -74,6 +74,12 @@ class Raffle extends Model {
     })
     banerMovileImgUrl: string
 
+    @Column({
+        type: DataType.STRING,
+        allowNull: true
+    })
+    color: string
+
     @HasMany(() => RaffleNumbers)
     raffleNumbers: RaffleNumbers[]
 

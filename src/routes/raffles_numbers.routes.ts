@@ -19,6 +19,11 @@ router.get('/shared',
     raffleNumbersControllers.getRaffleNumbersShared
 )
 
+router.get('/shared/random-number',
+    authenticateSharedLink,
+    raffleNumbersControllers.getRandomAvailableNumberShared
+)
+
 router.post('/shared/amount-number/',
     authenticateSharedLink,
     validateSchema(amountRaffleNumberSharedSchema),

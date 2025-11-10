@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
+import { Op, literal } from 'sequelize';
 import Payment from '../models/payment';
 import RaffleNumbers from '../models/raffle_numbers';
 import Rol from '../models/rol';
@@ -1515,6 +1515,36 @@ class raffleNumbersControllers {
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})
+        }
+    }
+
+    static getRandomAvailableNumberShared = async (req: Request, res: Response) => {
+        try {
+
+            const count = await RaffleNumbers.count({
+            where: { raffleId: req.raffle.id, status: 'available' }
+            });
+
+            const randomIndex = Math.floor(Math.random() * count);
+
+            const randomNumber = await RaffleNumbers.findOne({
+                where: { raffleId: req.raffle.id, status: 'available' },
+                attributes: ['id', 'number', 'status'],
+                offset: randomIndex,
+            });
+
+            console.log(randomNumber)
+
+            if (!randomNumber) {
+                res.json({error: 'Números aleatorios no disponibles'})
+                return
+            }
+
+            res.json(randomNumber);
+
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: "Error al obtener número aleatorio" });
         }
     }
 
