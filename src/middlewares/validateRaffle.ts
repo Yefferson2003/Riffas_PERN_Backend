@@ -38,7 +38,10 @@ export const createRifaSchema = z.object({
         .int({ message: "La cantidad debe ser un número entero." })
         .min(1, { message: "La cantidad debe ser al menos 1." })
         .default(1000),
-    
+    color: z
+        .string()
+        .optional().
+        default('#1976d2'),
 }).
 refine((data) => {
     const startDate = new Date(data.startDate);
@@ -77,6 +80,9 @@ export const updateRifaSchema = z.object({
         .refine((val) => !isNaN(new Date(val).getTime()), {
             message: "La fecha de juego debe ser una fecha válida.",
         }),
+    color: z
+        .string()
+        .optional(),
 })
 
 export const raffleNumbersIdsShema = z.object({
