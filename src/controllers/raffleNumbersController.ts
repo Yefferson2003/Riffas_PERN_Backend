@@ -581,10 +581,6 @@ class raffleNumbersControllers {
 
         const {separar, descuento} = req.query
         const fechaActual: Date = new Date();
-
-        // console.log('---- sellRaflleNumber -----');
-        // console.log(amount);
-        
         
         try {
 
@@ -624,8 +620,18 @@ class raffleNumbersControllers {
             // Validar el estado de los números - Abonar varios números pendientes
             const allPending = raffleNumbers.every(num => num.dataValues.status === 'pending');
 
-            // Verificar que el método de pago exista
-            const paymentMethodExiste = await RafflePayMethode.findByPk(paymentMethod)
+            // Verificar que el método de pago exista y pertenezca a la rifa
+            const paymentMethodExiste = await RafflePayMethode.findOne({
+                where: {
+                    id: paymentMethod,
+                    raffleId: req.raffle.id
+                }
+            });
+
+            if (!paymentMethodExiste) {
+                res.status(400).json({ error: 'El método de pago no es válido para esta rifa.' });
+                return;
+            }
 
              // Buscar o crear el método de pago "Efectivo"
             let efectivoPayMethod = await PayMethode.findOne({
@@ -641,16 +647,42 @@ class raffleNumbersControllers {
                 });
             }
 
-            // Buscar o crear el método de pago "Apartado"
-            let apartadoPayMethod = await PayMethode.findOne({
+            // Buscar o crear el método de pago "Apartado" en la rifa
+            let apartadoPayMethod = await RafflePayMethode.findOne({
                 where: {
-                    name: 'apartado'
-                }
+                    raffleId: req.raffle.id
+                },
+                include: [{
+                    model: PayMethode,
+                    as: 'payMethode',
+                    where: {
+                        name: 'apartado'
+                    }
+                }]
             });
 
             if (!apartadoPayMethod) {
-                apartadoPayMethod = await PayMethode.create({
-                    name: 'apartado',
+                // Buscar el PayMethode de apartado
+                let payMethodeApartado = await PayMethode.findOne({
+                    where: {
+                        name: 'apartado'
+                    }
+                });
+
+                if (!payMethodeApartado) {
+                    payMethodeApartado = await PayMethode.create({
+                        name: 'apartado',
+                        isActive: true
+                    });
+                }
+
+                // Crear el RafflePayMethode para apartado
+                apartadoPayMethod = await RafflePayMethode.create({
+                    raffleId: req.raffle.id,
+                    payMethodeId: payMethodeApartado.id,
+                    accountNumber: '',
+                    accountHolder: 'Sistema',
+                    bankName: 'Apartado',
                     isActive: true
                 });
             }
@@ -902,7 +934,7 @@ class raffleNumbersControllers {
                 amount: separar ? 0 : (descuento ? amount : req.raffle.dataValues.price),
                 paidAt: separar ? undefined : fechaActual,
                 userId: req.user.id,
-                paymentMethodId: separar ? ( descuento ? paymentMethod : apartadoPayMethod.id) : paymentMethodExiste.id,
+                paymentMethodId: separar ? ( descuento ? paymentMethodExiste.id : apartadoPayMethod.id) : paymentMethodExiste.id,
                 reference: separar ? undefined : (reference || null)
             }));
 

@@ -126,9 +126,48 @@ class raffleController {
                 }
             });
 
+
+            // Contar números disponibles
+            const availableNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'available'
+                }
+            });
+
+            // Contar números vendidos
+            const soldNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'sold'
+                }
+            });
+
+            // Contar números pendientes
+            const pendingNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'pending'
+                }
+            });
+
+            // Contar números apartados
+            const apartadoNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'apartado'
+                }
+            });
+
             const raffleWithTotal = {
                 ...req.raffle.toJSON(),
-                totalNumbers
+                totalNumbers,
+                numbersByStatus: {
+                    available: availableNumbers,
+                    sold: soldNumbers,
+                    pending: pendingNumbers,
+                    apartado: apartadoNumbers
+                }
             };
             
             res.json(raffleWithTotal)
@@ -159,10 +198,48 @@ class raffleController {
                 }
             });
 
+            // Contar números disponibles
+            const availableNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'available'
+                }
+            });
+
+            // Contar números vendidos
+            const soldNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'sold'
+                }
+            });
+
+            // Contar números pendientes
+            const pendingNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'pending'
+                }
+            });
+
+            // Contar números apartados
+            const apartadoNumbers = await RaffleNumbers.count({
+                where: {
+                    raffleId: req.raffle.id,
+                    status: 'apartado'
+                }
+            });
+
             // Agregar el contador al objeto raffle
             const raffleWithCount = {
                 ...raffle.toJSON(),
-                totalNumbers
+                totalNumbers,
+                numbersByStatus: {
+                    available: availableNumbers,
+                    sold: soldNumbers,
+                    pending: pendingNumbers,
+                    apartado: apartadoNumbers
+                }
             };
 
             res.json(raffleWithCount)
