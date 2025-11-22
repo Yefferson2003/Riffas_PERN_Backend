@@ -1146,6 +1146,7 @@ class raffleNumbersControllers {
                         paymentDue: currentPaymentDue - amount,
                         status: 'sold',
                     })
+                    
                 } else { // continuar abono
                     const existingPayment = await Payment.findOne({
                         where: { 
@@ -1484,8 +1485,10 @@ class raffleNumbersControllers {
                 where: { riffleNumberId: req.raffleNumber.id },
                 order: [['createdAt', 'DESC']], 
             });
+
+            const isApartadoDelete = req.raffleNumber.dataValues.status === 'apartado' && req.user.dataValues.rol.dataValues.name != 'vendedor'
         
-            if (existingPayment && existingPayment.dataValues.userId !== req.user.id) {
+            if (existingPayment && existingPayment.dataValues.userId !== req.user.id && !isApartadoDelete) {
                 res.status(403).json({ error: "No puedes eliminar un numero reservado por otro usuario." });
                 return
             }
