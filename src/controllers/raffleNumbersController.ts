@@ -1430,7 +1430,7 @@ class raffleNumbersControllers {
                             {
                                 model: User,
                                 as: "user",
-                                attributes: ["firstName", "lastName", "identificationNumber"],
+                                // attributes: ["firstName", "lastName", "identificationNumber"],
                                 required: false, // Permitir que User sea null
                             },
                         ],
