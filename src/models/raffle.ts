@@ -4,6 +4,7 @@ import UserRifa from "./user_raffle";
 import Awards from "./awards";
 import Expenses from "./expenses";
 import RafflePayMethode from "./rafflePayMethode";
+import RaffleOffer from "./raffleOffers";
 
 export const rifflesStatusEnum = ['finally', 'pendig', 'cancel'] as const;
 
@@ -100,6 +101,9 @@ class Raffle extends Model {
 
     @HasMany(() => RafflePayMethode)
     rafflePayMethodes: RafflePayMethode[]
+
+    @HasMany(() => RaffleOffer)
+    offers: RaffleOffer[]
     
 }
 

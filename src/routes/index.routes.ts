@@ -6,6 +6,7 @@ import rifflesNumbersRoutes from './raffles_numbers.routes'
 import paymentsRoutes from './payments.routes'
 import paymentMethodsRoutes from './payMethode.routes'
 import rafflePayMethodsRoutes from './rafflePayMethode.routes'
+import offersRoutes from './offer.routes'
 
 const router = Router()
 
@@ -16,5 +17,6 @@ router.use('/raffles-numbers', rifflesNumbersRoutes)
 router.use('/payments', paymentsRoutes)
 router.use('/payment-methods', paymentMethodsRoutes)
 router.use('/raffle-payment-methods', rafflePayMethodsRoutes)
+router.use('/offers', offersRoutes)
 
 export default router

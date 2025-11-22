@@ -1079,16 +1079,42 @@ class raffleNumbersControllers {
                 });
             }
 
-            // Buscar o crear el método de pago "Apartado"
-            let apartadoPayMethod = await PayMethode.findOne({
+            // Buscar o crear el método de pago "Apartado" en PayMethode
+            let payMethodeApartado = await PayMethode.findOne({
                 where: {
                     name: 'apartado'
                 }
             });
 
-            if (!apartadoPayMethod) {
-                apartadoPayMethod = await PayMethode.create({
+            if (!payMethodeApartado) {
+                payMethodeApartado = await PayMethode.create({
                     name: 'apartado',
+                    isActive: true
+                });
+            }
+
+            // Buscar o crear el RafflePayMethode para "Apartado" en esta rifa específica
+            let apartadoRafflePayMethod = await RafflePayMethode.findOne({
+                where: {
+                    raffleId: req.raffle.id
+                },
+                include: [{
+                    model: PayMethode,
+                    as: 'payMethode',
+                    where: {
+                        name: 'apartado'
+                    }
+                }]
+            });
+
+            if (!apartadoRafflePayMethod) {
+                // Crear el RafflePayMethode para apartado
+                apartadoRafflePayMethod = await RafflePayMethode.create({
+                    raffleId: req.raffle.id,
+                    payMethodeId: payMethodeApartado.id,
+                    accountNumber: '',
+                    accountHolder: 'Sistema',
+                    bankName: 'Apartado',
                     isActive: true
                 });
             }
@@ -1254,7 +1280,7 @@ class raffleNumbersControllers {
                         riffleNumberId: req.raffleNumber.id,
                         amount: amount,
                         userId: req.user.id,
-                        paymentMethodId: amountZero ? apartadoPayMethod.id : paymentMethodExiste.id,
+                        paymentMethodId: amountZero ? apartadoRafflePayMethod.id : paymentMethodExiste.id,
                         reference: amountZero ? null : reference || null
                     })
                     
@@ -1275,7 +1301,7 @@ class raffleNumbersControllers {
                         amount: 0,
                         // paidAt: fechaActual,
                         userId: req.user.id,
-                        paymentMethodId: apartadoPayMethod.id,
+                        paymentMethodId: apartadoRafflePayMethod.id,
                         reference: reference || null
                     })
 
