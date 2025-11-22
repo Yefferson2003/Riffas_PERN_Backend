@@ -579,8 +579,19 @@ class raffleNumbersControllers {
 
         const {raffleNumbersIds, firstName, lastName, phone, address, amount, paymentMethod, reference} = parsed.data
 
+        const referenceExist = await Payment.findOne({
+            where: { reference }
+        })
+
+        if (referenceExist) {
+            const error = new Error('Referencia de pago ya existe');
+            res.status(409).json({error: error.message});
+            return
+        }
+
         const {separar, descuento} = req.query
         const fechaActual: Date = new Date();
+        
         
         try {
 
@@ -1027,6 +1038,17 @@ class raffleNumbersControllers {
         const {descuento} = req.query
 
         const fechaActual: Date = new Date();
+
+        const referenceExist = await Payment.findOne({
+            where: { reference }
+        })
+
+        if (referenceExist) {
+            const error = new Error('Referencia de pago ya existe');
+            res.status(409).json({error: error.message});
+            return
+        }
+
         try {
             if (fechaActual > new Date(req.raffle.dataValues.editDate)) {
                 const error = new Error('Fuera del rango de fechas permitido');
@@ -1315,6 +1337,17 @@ class raffleNumbersControllers {
         }
 
         const { firstName, lastName, phone, address, amount, paymentMethod, reference, raffleNumbersIds} = parsed.data;
+
+        const referenceExist = await Payment.findOne({
+            where: { reference }
+        })
+
+        if (referenceExist) {
+            const error = new Error('Referencia de pago ya existe');
+            res.status(409).json({error: error.message});
+            return
+        }
+
         const fechaActual: Date = new Date();
 
         try {
