@@ -155,6 +155,17 @@ class RafflePayMethodeController {
     static async statusRafflePayMethod(req: Request, res: Response) {
         try {
 
+
+            const payMethodName =  req.rafflePayMethod.dataValues.payMethode?.dataValues.name?.toLowerCase();
+
+            // Validar que no sea 'efectivo' o 'apartado'
+            if (payMethodName === 'efectivo' || payMethodName === 'apartado') {
+                res.status(403).json({
+                    error: 'No es posible desactivar o activar los métodos de pago "Efectivo" o "Apartado"'
+                });
+                return;
+            }
+
             const currentStatus = req.rafflePayMethod.dataValues.isActive;
 
             await req.rafflePayMethod.update({ isActive: !currentStatus });

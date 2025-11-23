@@ -124,7 +124,7 @@ export const sellRaffleNumbersSchema = z.object({
         .max(100, "La dirección no debe exceder 100 caracteres"),
     amount: z
         .number()
-        .min(1, { message: "El monto no puede ser 0" })
+        // .min(1, { message: "El monto no puede ser 0" })
         .optional(),
     paymentMethod: z
         .number({ message: "El método de pago debe ser un número." })

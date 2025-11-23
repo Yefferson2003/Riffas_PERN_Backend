@@ -8,6 +8,7 @@ import Expenses from "../models/expenses";
 import Awards from "../models/awards";
 import PayMethode from "../models/payMethode";
 import RafflePayMethode from "../models/rafflePayMethode";
+import RaffleOffer from "../models/raffleOffers";
 
 declare global { 
     namespace Express {
@@ -18,11 +19,12 @@ declare global {
             award: Awards
             payMethod: PayMethode
             rafflePayMethod: RafflePayMethode
+            raffleOffer: RaffleOffer
         }
     }
 }
 
-const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode) {
+const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode | RaffleOffer) {
     if (!model) {
         const error = new Error('Elemento no Encontrado')
         res.status(404).json({error: error.message})
@@ -133,9 +135,49 @@ export const payMethodExists = async (req: Request, res: Response, next: NextFun
 export const rafflePayMethodExists = async (req: Request, res: Response, next: NextFunction) => {
     try {
         const { rafflePayMethodId } = req.params
-        const rafflePayMethod = await RafflePayMethode.findByPk(rafflePayMethodId)
+        const rafflePayMethod = await RafflePayMethode.findByPk(rafflePayMethodId, {
+            include: [
+                {
+                    model: PayMethode,
+                    as: 'payMethode',
+                    attributes: ['name']
+                }
+            ]
+        })
         if (!elementExists(res, rafflePayMethod)) return
         req.rafflePayMethod = rafflePayMethod
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+
+export const raffleOfferExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { raffleOfferId } = req.params
+
+        if (!req.raffle) {
+            const error = new Error('La rifa no está definida en la solicitud')
+            res.status(400).json({error: error.message})
+            return
+        }
+
+        const raffleOffer = await RaffleOffer.findOne({
+            where: {
+                id: raffleOfferId,
+                raffleId: req.raffle.id
+            }
+
+            // include: [
+            //     {
+            //         model: Raffle,
+            //         as: 'raffle',
+            //         attributes: ['id', 'price']
+            //     }
+            // ]
+        })
+        if (!elementExists(res, raffleOffer)) return
+        req.raffleOffer = raffleOffer
         next()
     } catch (error) {
         res.status(500).json({error: 'Hubo un Error - models'})
