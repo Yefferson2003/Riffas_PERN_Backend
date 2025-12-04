@@ -9,19 +9,19 @@ const router = Router()
 
 router.get('/',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     clientsController.getClientsAll
 )
 
 router.get('/export-all',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     clientsController.getAllClientsForExport
 )
 
 router.get('/:clientId',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateIdParam('clientId'),
     clientExists,
     clientsController.getClientById
@@ -29,14 +29,14 @@ router.get('/:clientId',
 
 router.post('/',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateSchema(clientSchema),
     clientsController.createClient
 )
 
 router.post('/:clientId/buy-numbers',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateIdParam('clientId'),
     validateSchema(buyNumbersForClientSchema),
     clientExists,
@@ -45,7 +45,7 @@ router.post('/:clientId/buy-numbers',
 
 router.put('/:clientId',
     authenticate,
-    checkRole(['admin', 'responsable']),
+    checkRole(['admin', 'responsable', 'vendedor']),
     validateIdParam('clientId'),
     clientExists,
     userClientExist,
