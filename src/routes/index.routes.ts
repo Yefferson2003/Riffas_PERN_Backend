@@ -8,6 +8,7 @@ import paymentMethodsRoutes from './payMethode.routes'
 import rafflePayMethodsRoutes from './rafflePayMethode.routes'
 import raffleOffersRoutes from './raffleOffers.routes'
 import offersRoutes from './offer.routes'
+import clientRoutes from './client.routes'
 
 const router = Router()
 
@@ -20,5 +21,6 @@ router.use('/payment-methods', paymentMethodsRoutes)
 router.use('/raffle-payment-methods', rafflePayMethodsRoutes)
 router.use('/raffle-offers', raffleOffersRoutes)
 router.use('/offers', offersRoutes)
+router.use('/clients', clientRoutes)
 
 export default router

@@ -18,7 +18,7 @@ class ExpenseController {
 
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
@@ -37,7 +37,7 @@ class ExpenseController {
 
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
@@ -76,7 +76,7 @@ class ExpenseController {
 
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
@@ -110,20 +110,20 @@ class ExpenseController {
 
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
     static async getExpenseById(req: Request, res: Response){
         try {
             if (req.expense.dataValues.userId !== req.user.id) {
-                res.status(403).json({errors: 'No tienes permiso para modificar este gasto'})
+                res.status(403).json({error: 'No tienes permiso para modificar este gasto'})
                 return 
             }
             res.json(req.expense)
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
@@ -142,8 +142,8 @@ class ExpenseController {
 
             res.status(201).send('Gasto creado correctamente')
         } catch (error) {
-            console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+        console.log(error);
+        res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
@@ -152,7 +152,7 @@ class ExpenseController {
         try {
 
             if (req.expense.dataValues.userId !== req.user.id) {
-                res.status(403).json({errors: 'No tienes permiso para modificar este gasto'})
+                res.status(403).json({error: 'No tienes permiso para modificar este gasto'})
                 return 
             }
             
@@ -164,7 +164,7 @@ class ExpenseController {
             res.status(201).send('Gasto actualizado correctamente')
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 
@@ -173,7 +173,7 @@ class ExpenseController {
 
             
             if (req.expense.dataValues.userId !== req.user.id) {
-                res.status(403).json({errors: 'No tienes permiso para modificar este gasto'})
+                res.status(403).json({error: 'No tienes permiso para modificar este gasto'})
                 return 
             }
 
@@ -182,7 +182,7 @@ class ExpenseController {
             res.status(200).send('Gasto eliminado correctamente')
         } catch (error) {
             console.log(error);
-            res.status(500).json({errors: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un Error'})
         }
     }
 

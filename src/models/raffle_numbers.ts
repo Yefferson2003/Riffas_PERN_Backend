@@ -1,6 +1,7 @@
 import { BelongsTo, Column, DataType, Default, ForeignKey, HasMany, Model, Table } from "sequelize-typescript";
 import Raffle from "./raffle";
 import Payment from "./payment";
+import Clients from "./clients";
 
 export const rifflesNumbersStatusEnum = ['available', 'sold', 'pending', 'apartado'] as const;
 export const identificationTypeEnum = ['CC', 'TI', 'CE'] as const;
@@ -92,6 +93,16 @@ class RaffleNumbers extends Model{
 
     @HasMany(() => Payment)
     payments: Payment[]
+
+    @ForeignKey(() => Clients)
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true
+    })
+    clienteId: number
+
+    @BelongsTo(() => Clients)
+    client: Clients
 
 }
 

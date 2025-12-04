@@ -9,6 +9,7 @@ import Awards from "../models/awards";
 import PayMethode from "../models/payMethode";
 import RafflePayMethode from "../models/rafflePayMethode";
 import RaffleOffer from "../models/raffleOffers";
+import Clients from "../models/clients";
 
 declare global { 
     namespace Express {
@@ -20,11 +21,12 @@ declare global {
             payMethod: PayMethode
             rafflePayMethod: RafflePayMethode
             raffleOffer: RaffleOffer
+            client: Clients
         }
     }
 }
 
-const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode | RaffleOffer) {
+const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode | RaffleOffer | Clients) {
     if (!model) {
         const error = new Error('Elemento no Encontrado')
         res.status(404).json({error: error.message})
@@ -184,3 +186,14 @@ export const raffleOfferExists = async (req: Request, res: Response, next: NextF
     }
 }
 
+export const clientExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { clientId } = req.params 
+        const client = await Clients.findByPk(clientId)
+        if (!elementExists(res, client)) return
+        req.client = client
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}

@@ -14,65 +14,89 @@ import RafflePayMethode from '../models/rafflePayMethode';
 
 class raffleController {
 
-    static getRaffles = async (req : Request, res : Response) => {
-        const {search, page = 1, limit = 4} = req.query
+    static getRaffles = async (req: Request, res: Response) => {
+        const { search, page = 1, limit = 4 } = req.query;
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
+
         try {
-            let filter : any = {}
+            let filter: any = {};
 
             if (search) {
                 filter[Op.or] = [
-                    { name: { [Op.like]: `%${search}%` } }, 
-                    { nitResponsable: { [Op.like]: `%${search}%` } },  
-                    { nameResponsable: { [Op.like]: `%${search}%` } },  
-                    { description: { [Op.like]: `%${search}%` } }, 
+                    { name: { [Op.like]: `%${search}%` } },
+                    { nitResponsable: { [Op.like]: `%${search}%` } },
+                    { nameResponsable: { [Op.like]: `%${search}%` } },
+                    { description: { [Op.like]: `%${search}%` } }
                 ];
             }
 
-            const isUser = req.user.dataValues.rol.dataValues.name !== 'admin'
-            
-            let filterUserRaffle : any = {}
+            const isUser = req.user.dataValues.rol.dataValues.name !== 'admin';
 
+            let filterUserRaffle: any = {};
             if (isUser) {
-                filterUserRaffle.userId = req.user.id
+                filterUserRaffle.userId = req.user.id;
             }
 
-            const { count, rows: raffles} = await Raffle.findAndCountAll({
+            const { count, rows: raffles } = await Raffle.findAndCountAll({
                 distinct: true,
-                attributes: ['id', 'name', 'description', 'startDate', 'playDate', 'editDate', 'price', 'banerImgUrl', 'nitResponsable', 'nameResponsable', 'banerMovileImgUrl'],
                 where: filter,
-                ...(isUser ? { 
-                    include: [
-                        {
-                            model: UserRifa,
-                            as: 'userRiffle',
-                            attributes: ['id'],
-                            where: filterUserRaffle
-                        }
-                    ],
-                } : {
-                    
-                }),
+                include: [
+                    ...(isUser
+                        ? [
+                            {
+                                model: UserRifa,
+                                as: "userRiffle",
+                                attributes: [],
+                                where: filterUserRaffle
+                            }
+                        ]
+                        : [])
+                ],
                 limit: limitNumber,
                 offset,
-                order: [['id', 'DESC']],
-            })
+                order: [["id", "DESC"]]
+            });
+
+            // Obtener ids
+            const raffleIds = raffles.map(r => r.id);
+
+            const numbersCount = await RaffleNumbers.findAll({
+                attributes: [
+                    "raffleId",
+                    [RaffleNumbers.sequelize.fn("COUNT", RaffleNumbers.sequelize.col("id")), "totalNumbers"]
+                ],
+                where: { raffleId: { [Op.in]: raffleIds } },
+                group: ["raffleId"]
+            });
+
+            // Convertir resultados a mapa
+            const countMap = {};
+            numbersCount.forEach(item => {
+                countMap[item.dataValues.raffleId] = parseInt(item.dataValues.totalNumbers);
+            });
+
+            const rafflesWithCount = raffles.map(r => ({
+                ...r.toJSON(),
+                totalNumbers: countMap[r.id] || 0
+            }));
 
             res.json({
                 total: count,
-                raffles,
+                raffles: rafflesWithCount,
                 totalPages: Math.ceil(count / limitNumber),
-                currentPage: pageNumber,
+                currentPage: pageNumber
             });
-
         } catch (error) {
             console.log(error);
-            res.status(500).json({error: 'Hubo un Error'})
+            res.status(500).json({ error: "Hubo un error" });
         }
-    }
+    };
+
+
+
 
     static getRafflesDetailsNumbers = async (req: Request, res: Response) => {
         try {

@@ -1,8 +1,10 @@
-import { BelongsTo, Column, DataType, Default, ForeignKey, HasMany, Model, Table } from "sequelize-typescript";
+import { BelongsTo, Column, DataType, Default, ForeignKey, HasMany, Model, Table, BelongsToMany } from "sequelize-typescript";
 import Expenses from "./expenses";
 import Payment from "./payment";
 import Rol from "./rol";
 import UserRifa from "./user_raffle";
+import Clients from "./clients";
+import UserClients from "./user_clients";
 
 @Table({
     tableName: 'users'
@@ -86,6 +88,14 @@ class User extends Model{
         hooks: true           
     })
     payments: Payment[]
+
+    // Relación Many-to-Many con Clients
+    @BelongsToMany(() => Clients, () => UserClients)
+    clients: Clients[]
+
+    // Relación directa con la tabla intermedia
+    @HasMany(() => UserClients)
+    userClients: UserClients[]
 
 
     @BelongsTo(() => Rol)
