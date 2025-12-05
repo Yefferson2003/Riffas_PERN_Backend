@@ -18,9 +18,51 @@ class clientsController {
             let clientsWhere: any = {};
             const rolName = req.user.dataValues.rol.dataValues.name;
             const isAdmin = rolName === 'admin';
+            const isResponsable = rolName === 'responsable';
+            const isVendedor = rolName === 'vendedor';
 
             let clientIds: number[] = [];
-            if (!isAdmin) {
+            if (isAdmin) {
+                // Admin: ve todos los clientes
+            } else if (isResponsable) {
+                // Responsable: ve los clientes asociados a él
+                const userClients = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                clientIds = userClients.map(uc => uc.dataValues.clientId);
+                if (clientIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            } else if (isVendedor) {
+                // Vendedor: ve los clientes asociados a él y a su creador (createdBy)
+                const createdBy = req.user.dataValues.createdBy;
+                let vendedorClientIds: number[] = [];
+                // Clientes asociados a sí mismo
+                const userClientsSelf = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                vendedorClientIds = userClientsSelf.map(uc => uc.dataValues.clientId);
+                // Clientes asociados a su creador
+                if (createdBy) {
+                    const userClientsCreator = await UserClients.findAll({
+                        where: { userId: createdBy },
+                        attributes: ['clientId']
+                    });
+                    vendedorClientIds = vendedorClientIds.concat(userClientsCreator.map(uc => uc.dataValues.clientId));
+                }
+                // Eliminar duplicados
+                clientIds = [...new Set(vendedorClientIds)];
+                if (clientIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            } else {
+                // Otros roles: solo los asociados a sí mismo
                 const userClients = await UserClients.findAll({
                     where: { userId: req.user.id },
                     attributes: ['clientId']
@@ -110,22 +152,23 @@ class clientsController {
         const offset = (pageNumber - 1) * limitNumber;
 
         try {
-            
             let clientsWhere : any = {}
-
             const rolName = req.user.dataValues.rol.dataValues.name;
             const isAdmin = rolName === 'admin';
             const isResponsable = rolName === 'responsable';
+            const isVendedor = rolName === 'vendedor';
 
             let clientIds: number[] = [];
-            if (!isAdmin) {
-                // Buscar los clientes asociados al usuario actual
+            if (isAdmin) {
+                // Admin: ve todos los clientes
+                // No se filtra por clientIds
+            } else if (isResponsable) {
+                // Responsable: ve los clientes asociados a él
                 const userClients = await UserClients.findAll({
                     where: { userId: req.user.id },
                     attributes: ['clientId']
                 });
                 clientIds = userClients.map(uc => uc.dataValues.clientId);
-                // Si no tiene clientes, retornar vacío
                 if (clientIds.length === 0) {
                     res.json({
                         total: 0,
@@ -135,12 +178,55 @@ class clientsController {
                     });
                     return;
                 }
-            }
-            
-            // Si no es admin, filtrar por los clientes asignados
-                if (!isAdmin) {
-                    clientsWhere.id = { [Op.in]: clientIds };
+                clientsWhere.id = { [Op.in]: clientIds };
+            } else if (isVendedor) {
+                // Vendedor: ve los clientes asociados a él y a su creador (createdBy)
+                const createdBy = req.user.dataValues.createdBy;
+                let vendedorClientIds: number[] = [];
+                // Clientes asociados a sí mismo
+                const userClientsSelf = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                vendedorClientIds = userClientsSelf.map(uc => uc.dataValues.clientId);
+                // Clientes asociados a su creador
+                if (createdBy) {
+                    const userClientsCreator = await UserClients.findAll({
+                        where: { userId: createdBy },
+                        attributes: ['clientId']
+                    });
+                    vendedorClientIds = vendedorClientIds.concat(userClientsCreator.map(uc => uc.dataValues.clientId));
                 }
+                // Eliminar duplicados
+                clientIds = [...new Set(vendedorClientIds)];
+                if (clientIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
+                    });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            } else {
+                // Otros roles: solo los asociados a sí mismo
+                const userClients = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                clientIds = userClients.map(uc => uc.dataValues.clientId);
+                if (clientIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
+                    });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            }
 
             if (search) {
                 const searchConditions = [];
@@ -158,7 +244,6 @@ class clientsController {
                 }
                 clientsWhere[Op.or] = searchConditions;
             }
-
 
             // Consulta principal
             const {rows: clients, count} = await Clients.findAndCountAll({
@@ -193,7 +278,6 @@ class clientsController {
             });
 
             // Obtener el total de números por rifa
-            // Map: { raffleId: totalNumbers }
             const raffleIds = [];
             clients.forEach(client => {
                 if (client.dataValues.raffleNumbers) {
@@ -228,8 +312,6 @@ class clientsController {
                     });
                 }
             });
-            console.log('Raffle Total-----------',raffleTotals );
-            
 
             res.json({ 
                 total: count,
