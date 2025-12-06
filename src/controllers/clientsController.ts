@@ -77,7 +77,7 @@ class clientsController {
 
             const clients = await Clients.findAll({
                 where: clientsWhere,
-                order: [['lastName', 'DESC']],
+                order: [['phone', 'DESC']],
                 include: [
                     {
                         model: RaffleNumbers,
