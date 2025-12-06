@@ -19,6 +19,12 @@ router.get('/export-all',
     clientsController.getAllClientsForExport
 )
 
+router.get('/select-input',
+    authenticate,
+    checkRole(['admin', 'responsable', 'vendedor']),
+    clientsController.getClientForSelect
+)
+
 router.get('/:clientId',
     authenticate,
     checkRole(['admin', 'responsable', 'vendedor']),

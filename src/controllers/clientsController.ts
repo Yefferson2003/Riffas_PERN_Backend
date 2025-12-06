@@ -144,6 +144,128 @@ class clientsController {
         }
     }
 
+    static async getClientForSelect(req: Request, res: Response) {
+        const { page = 1, limit = 15, search = '' } = req.query;
+
+        const pageNumber = parseInt(page as string);
+        const limitNumber = parseInt(limit as string);
+        const offset = (pageNumber - 1) * limitNumber;
+        try {
+            let clientsWhere: any = {};
+            const rolName = req.user.dataValues.rol.dataValues.name;
+            const isAdmin = rolName === 'admin';
+            const isResponsable = rolName === 'responsable';
+            const isVendedor = rolName === 'vendedor';
+
+            let clientIds: number[] = [];
+            if (isAdmin) {
+                // Admin: ve todos los clientes
+                // No se filtra por clientIds
+            } else if (isResponsable) {
+                // Responsable: ve los clientes asociados a él
+                const userClients = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                clientIds = userClients.map(uc => uc.dataValues.clientId);
+                if (clientIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
+                    });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            } else if (isVendedor) {
+                // Vendedor: ve los clientes asociados a él y a su creador (createdBy)
+                const createdBy = req.user.dataValues.createdBy;
+                let vendedorClientIds: number[] = [];
+                // Clientes asociados a sí mismo
+                const userClientsSelf = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                vendedorClientIds = userClientsSelf.map(uc => uc.dataValues.clientId);
+                // Clientes asociados a su creador
+                if (createdBy) {
+                    const userClientsCreator = await UserClients.findAll({
+                        where: { userId: createdBy },
+                        attributes: ['clientId']
+                    });
+                    vendedorClientIds = vendedorClientIds.concat(userClientsCreator.map(uc => uc.dataValues.clientId));
+                }
+                // Eliminar duplicados
+                clientIds = [...new Set(vendedorClientIds)];
+                if (clientIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
+                    });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            } else {
+                // Otros roles: solo los asociados a sí mismo
+                const userClients = await UserClients.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['clientId']
+                });
+                clientIds = userClients.map(uc => uc.dataValues.clientId);
+                if (clientIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
+                    });
+                    return;
+                }
+                clientsWhere.id = { [Op.in]: clientIds };
+            }
+
+            // Búsqueda por nombre, apellido, teléfono y dirección (como en getClientsAll)
+            if (search) {
+                const searchConditions = [];
+                // Siempre buscar por teléfono
+                searchConditions.push({ phone: { [Op.like]: `%${search}%` } });
+                // Buscar nombres, apellidos y dirección sin importar mayúsculas/minúsculas
+                if (Op.iLike) {
+                    searchConditions.push({ firstName: { [Op.iLike]: `%${search}%` } });
+                    searchConditions.push({ lastName: { [Op.iLike]: `%${search}%` } });
+                    searchConditions.push({ address: { [Op.iLike]: `%${search}%` } });
+                } else {
+                    // Fallback para bases sin Op.iLike
+                    const searchStr = typeof search === 'string' ? search.toLowerCase() : '';
+                    searchConditions.push({ firstName: { [Op.like]: `%${searchStr}%` } });
+                    searchConditions.push({ lastName: { [Op.like]: `%${searchStr}%` } });
+                    searchConditions.push({ address: { [Op.like]: `%${searchStr}%` } });
+                }
+                clientsWhere[Op.or] = searchConditions;
+            }
+
+            const { count, rows: clients } = await Clients.findAndCountAll({
+                distinct: true,
+                where: clientsWhere,
+                limit: limitNumber,
+                offset: offset,
+                order: [['lastName', 'DESC']]
+            });
+            res.json({
+                total: count,
+                clients,
+                totalPages: Math.ceil(count / limitNumber),
+                currentPage: pageNumber
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Hubo un Error' });
+        }
+    }
+
     static async getClientsAll( req: Request, res: Response ){
         const {page = 1, limit = 15, search } = req.query
 
