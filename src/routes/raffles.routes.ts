@@ -32,7 +32,6 @@ router.get('/awards/shared',
     awardsController.getAwardsByRaffleShared
 )
 
-
 router.get('/:raffleId', 
     authenticate,
     validateIdParam('raffleId'),
@@ -46,6 +45,7 @@ router.post('/',
     validateSchema(createRifaSchema),
     raffleController.createRaffle
 );
+
 router.post('/:raffleId/URL', 
     authenticate,
     checkRole(['admin', 'responsable']),

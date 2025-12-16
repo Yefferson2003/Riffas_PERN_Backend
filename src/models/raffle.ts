@@ -64,16 +64,26 @@ class Raffle extends Model {
     @Default('https://res.cloudinary.com/dkqd7yggo/image/upload/v1733066711/cfxhlnkol71lyfpp8amy.jpg')
     @Column({
         type: DataType.TEXT,
-        allowNull: true
+        allowNull: true,
+        defaultValue: 'https://res.cloudinary.com/dkqd7yggo/image/upload/v1733066711/cfxhlnkol71lyfpp8amy.jpg'
     })
     banerImgUrl: string
 
     @Default('https://res.cloudinary.com/dkqd7yggo/image/upload/v1733066711/cfxhlnkol71lyfpp8amy.jpg')
     @Column({
         type: DataType.TEXT,
-        allowNull: true
+        allowNull: true,
+        defaultValue: 'https://res.cloudinary.com/dkqd7yggo/image/upload/v1733066711/cfxhlnkol71lyfpp8amy.jpg'
     })
     banerMovileImgUrl: string
+
+    @Default('https://res.cloudinary.com/dfbwjrpdu/image/upload/v1765900779/receipt_657234_p517ss.png')
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+        defaultValue: 'https://res.cloudinary.com/dfbwjrpdu/image/upload/v1765900779/receipt_657234_p517ss.png'
+    })
+    imgIconoUrl: string
 
     @Column({
         type: DataType.STRING,

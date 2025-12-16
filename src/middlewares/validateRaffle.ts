@@ -45,6 +45,15 @@ export const createRifaSchema = z.object({
         .string()
         .optional().
         default('#1976d2'),
+    banerImgUrl: z
+        .string()
+        .optional(),
+    banerMovileImgUrl: z
+        .string()
+        .optional(),
+    imgIconoUrl: z
+        .string()
+        .optional(),
 }).
 refine((data) => {
     const startDate = new Date(data.startDate);
@@ -87,6 +96,15 @@ export const updateRifaSchema = z.object({
             .string()
             .optional(),
     color: z
+        .string()
+        .optional(),
+    banerImgUrl: z
+        .string()
+        .optional(),
+    banerMovileImgUrl: z
+        .string()
+        .optional(),
+    imgIconoUrl: z
         .string()
         .optional(),
 })
