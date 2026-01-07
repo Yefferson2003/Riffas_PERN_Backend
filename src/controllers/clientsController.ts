@@ -9,9 +9,11 @@ import Raffle from '../models/raffle';
 import PayMethode from '../models/payMethode';
 import RafflePayMethode from '../models/rafflePayMethode';
 
+
+import { clientOrderMap } from '../utils';
+
 class clientsController {
 
-     // Ruta para exportar todos los clientes y sus datos completos (sin paginación)
     // Ruta para exportar todos los clientes y sus datos completos (sin paginación)
     static async getAllClientsForExport(req: Request, res: Response) {
         try {
@@ -145,11 +147,14 @@ class clientsController {
     }
 
     static async getClientForSelect(req: Request, res: Response) {
-        const { page = 1, limit = 15, search = '' } = req.query;
+        const { page = 1, limit = 15, search = '', order = 1 } = req.query;
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
+        const orderValue = parseInt(order as string) || 1;
+        const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
+
         try {
             let clientsWhere: any = {};
             const rolName = req.user.dataValues.rol.dataValues.name;
@@ -252,7 +257,7 @@ class clientsController {
                 where: clientsWhere,
                 limit: limitNumber,
                 offset: offset,
-                order: [['lastName', 'DESC']]
+                order: orderClause
             });
             res.json({
                 total: count,
@@ -267,11 +272,13 @@ class clientsController {
     }
 
     static async getClientsAll( req: Request, res: Response ){
-        const {page = 1, limit = 15, search } = req.query
+        const {page = 1, limit = 15, search, order = 1 } = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
+        const orderValue = parseInt(order as string) || 1;
+        const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
 
         try {
             let clientsWhere : any = {}
@@ -373,7 +380,7 @@ class clientsController {
                 where: clientsWhere,
                 limit: limitNumber,
                 offset: offset,
-                order: [['lastName', 'DESC']],
+                order: orderClause,
                 include: [
                     {
                         model: RaffleNumbers,
