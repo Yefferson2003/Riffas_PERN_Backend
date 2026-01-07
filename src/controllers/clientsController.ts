@@ -272,7 +272,7 @@ class clientsController {
     }
 
     static async getClientsAll( req: Request, res: Response ){
-        const {page = 1, limit = 15, search, order = 1 } = req.query
+        const {page = 1, limit = 15, search, order = 1, startDate, endDate } = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -372,6 +372,24 @@ class clientsController {
                     searchConditions.push({ lastName: { [Op.like]: `%${searchStr}%` } });
                 }
                 clientsWhere[Op.or] = searchConditions;
+            }
+
+            // Filtro por rango de fecha de creación
+            if (startDate && endDate) {
+                clientsWhere.createdAt = {
+                    [Op.between]: [
+                        new Date(startDate as string),
+                        new Date(endDate as string)
+                    ]
+                };
+            } else if (startDate) {
+                clientsWhere.createdAt = {
+                    [Op.gte]: new Date(startDate as string)
+                };
+            } else if (endDate) {
+                clientsWhere.createdAt = {
+                    [Op.lte]: new Date(endDate as string)
+                };
             }
 
             // Consulta principal
