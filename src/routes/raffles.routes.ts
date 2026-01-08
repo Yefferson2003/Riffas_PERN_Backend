@@ -6,7 +6,7 @@ import { authenticate, authenticateSharedLink, checkRole } from "../middlewares/
 import { awardExists, ExpensesExists, raffleExists, userExists } from "../middlewares/model";
 import { validateIdParam, validateSchema } from "../middlewares/validateAuth";
 import { expenseSchema } from "../middlewares/validateExpenses";
-import { createRifaSchema, updateRifaSchema, URLRaffleSchema } from "../middlewares/validateRaffle";
+import { createRifaSchema, expirationDaysSchema, updateRifaSchema, URLRaffleSchema } from "../middlewares/validateRaffle";
 import { awardSchema } from "../middlewares/validateAwards";
 
 const router = Router()
@@ -46,12 +46,30 @@ router.post('/',
     raffleController.createRaffle
 );
 
-router.post('/:raffleId/URL', 
+router.get('/:raffleId/URL', 
     authenticate,
     checkRole(['admin', 'responsable']),
     validateIdParam('raffleId'),
     raffleExists,
+    raffleController.GetshareUrlRaffleByRaffleId
+);
+
+router.post('/:raffleId/URL', 
+    authenticate,
+    checkRole(['admin', 'responsable']),
+    validateIdParam('raffleId'),
+    validateSchema(expirationDaysSchema),
+    raffleExists,
     raffleController.shareUrlRaffleShort
+);
+
+router.delete('/:raffleId/URL/:urlId', 
+    authenticate,
+    checkRole(['admin', 'responsable']),
+    validateIdParam('raffleId'),
+    validateIdParam('urlId'),
+    raffleExists,
+    raffleController.deleteSharedUrlRaffle
 );
 
 router.put('/:raffleId',

@@ -11,6 +11,7 @@ import SharedLink from '../models/sharedLink';
 import slugify from 'slugify';
 import PayMethode from '../models/payMethode';
 import RafflePayMethode from '../models/rafflePayMethode';
+import { expirationDaysSchema } from '../middlewares/validateRaffle';
 
 class raffleController {
 
@@ -379,7 +380,32 @@ class raffleController {
     } 
 
 
+    static GetshareUrlRaffleByRaffleId = async (req: Request, res: Response) => {
+        try {
+            const urls = await SharedLink.findAll({
+                where: {
+                    raffleId: req.raffle.id
+                },
+                order: [['createdAt', 'DESC']]
+            });
+            res.json({ urls });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Hubo un error obteniendo la URL" });
+        }
+    };
+
     static shareUrlRaffleShort = async (req: Request, res: Response) => {
+
+        const parsed = expirationDaysSchema.safeParse(req.body);
+
+        if (!parsed.success) {
+            res.status(400).json({ error: parsed.error.errors.map(e => e.message).join(', ') });
+            return
+        }
+
+        const { expirationDays } = parsed.data;
+
         try {
 
             const token = jwt.sign(
@@ -388,7 +414,7 @@ class raffleController {
                     scope: "raffle:share",
                 },
                 process.env.JWT_SECRET as string,
-                { expiresIn: "120d" }
+                { expiresIn: `${expirationDays}d` }
             );
 
             const slug = slugify(req.raffle.dataValues.name, {
@@ -401,20 +427,46 @@ class raffleController {
             const identifier = `${slug}-${randomNum}`;
 
             const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + 120);
+            expiresAt.setDate(expiresAt.getDate() + expirationDays);
+
+            const url = `${process.env.FRONTEND_URL}/raffle/shared/${identifier}`;
 
             await SharedLink.create({
                 uuid: identifier, 
                 token,
                 expiresAt,
+                url,
+                raffleId: req.raffle.id
             });
 
-            const url = `${process.env.FRONTEND_URL}/raffle/shared/${identifier}`;
 
             res.json({ url });
         } catch (error) {
             console.error(error);
             res.status(500).json({ error: "Hubo un error generando la URL" });
+        }
+    };
+
+    static deleteSharedUrlRaffle = async (req: Request, res: Response) => {
+        try {
+
+            const url = await SharedLink.findOne({
+                where: {
+                    id: req.params.urlId,
+                    raffleId: req.raffle.id
+                }
+            });
+
+            if (!url) {
+                res.status(404).json({ error: "URL no encontrada" });
+                return 
+            }
+
+            await url.destroy();
+            res.json({ message: "URL eliminada correctamente" });
+        } catch (error) {
+            console.error(error);
+            res.status(500).json({ error: "Hubo un error eliminando la URL" });
         }
     };
 

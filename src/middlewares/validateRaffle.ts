@@ -266,3 +266,10 @@ export const URLRaffleSchema = z.object({
         .min(1, "Id de la rifa obligatorio")
 })
 
+export const expirationDaysSchema = z.object({
+    expirationDays: z
+        .number()
+        .int()
+        .positive("Los días de expiración deben ser un número positivo")
+})
+
