@@ -1,44 +1,61 @@
-import cors from 'cors';
+import cors from "cors";
 import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import { corsConfig } from "./config/cors";
+
 import connectDB from "./config/db";
 import router from "./routes/index.routes";
-// import { initializeData } from './config/initializeData';
+import webhookRoutes from "./routes/indexWebhooks.routes";
+import { inicializateData } from "./config/inicializateData";
+
 
 connectDB();
-// initializeData()
 
-const app = express();
-const server = http.createServer(app); 
-const io = new Server(server, {
-    cors: corsConfig, 
+// Inicializar datos base (roles y usuarios)
+inicializateData().then(() => {
+    console.log("Datos iniciales cargados");
+}).catch((err) => {
+    console.error("Error al inicializar datos:", err);
 });
 
-app.use(cors(corsConfig));
+const app = express();
+const server = http.createServer(app);
+
+// ⚠️ JSON primero (necesario para webhooks)
 app.use(express.json());
 
-// app.set("io", io);
-app.use('/api', router);
+/* ===============================
+    🔔 WEBHOOKS (SIN CORS)
+================================ */
+app.use("/webhooks", webhookRoutes);
+
+/* ===============================
+    🌐 API NORMAL (CON CORS)
+================================ */
+app.use(cors(corsConfig));
+app.use("/api", router);
+
+/* ===============================
+    🔌 SOCKET.IO
+================================ */
+const io = new Server(server, {
+    cors: corsConfig,
+});
 
 io.on("connection", (socket) => {
     console.log(`Nuevo cliente conectado: ${socket.id}`);
 
-    // Ejemplo: Escuchar eventos del cliente
     socket.on("message", (data) => {
         console.log("Mensaje recibido:", data);
-        // Responder a todos los clientes conectados
-        io.emit("message", { message: "Mensaje recibido en el servidor", data });
+        io.emit("message", { message: "Mensaje recibido", data });
     });
 
-    // Ejemplo: Notificar cuando un cliente se desconecta
     socket.on("disconnect", () => {
         console.log(`Cliente desconectado: ${socket.id}`);
     });
 });
-app.set('io', io);
 
-// export { io, server };
-// export default app;
+app.set("io", io);
+
 export default server;

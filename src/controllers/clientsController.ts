@@ -16,6 +16,11 @@ class clientsController {
 
     // Ruta para exportar todos los clientes y sus datos completos (sin paginación)
     static async getAllClientsForExport(req: Request, res: Response) {
+
+        const { search, order = 1, startDate, endDate } = req.query;
+        const orderValue = parseInt(order as string) || 1;
+        const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
+
         try {
             let clientsWhere: any = {};
             const rolName = req.user.dataValues.rol.dataValues.name;
@@ -77,9 +82,47 @@ class clientsController {
                 clientsWhere.id = { [Op.in]: clientIds };
             }
 
+            // Filtro de búsqueda por nombre, apellido, teléfono y dirección
+            if (search) {
+                const searchConditions = [];
+                // Siempre buscar por teléfono
+                searchConditions.push({ phone: { [Op.like]: `%${search}%` } });
+                // Buscar nombres, apellidos y dirección sin importar mayúsculas/minúsculas
+                if (Op.iLike) {
+                    searchConditions.push({ firstName: { [Op.iLike]: `%${search}%` } });
+                    searchConditions.push({ lastName: { [Op.iLike]: `%${search}%` } });
+                    searchConditions.push({ address: { [Op.iLike]: `%${search}%` } });
+                } else {
+                    // Fallback para bases sin Op.iLike
+                    const searchStr = typeof search === 'string' ? search.toLowerCase() : '';
+                    searchConditions.push({ firstName: { [Op.like]: `%${searchStr}%` } });
+                    searchConditions.push({ lastName: { [Op.like]: `%${searchStr}%` } });
+                    searchConditions.push({ address: { [Op.like]: `%${searchStr}%` } });
+                }
+                clientsWhere[Op.or] = searchConditions;
+            }
+
+            // Filtro por rango de fecha de creación
+            if (startDate && endDate) {
+                clientsWhere.createdAt = {
+                    [Op.between]: [
+                        new Date(startDate as string),
+                        new Date(endDate as string)
+                    ]
+                };
+            } else if (startDate) {
+                clientsWhere.createdAt = {
+                    [Op.gte]: new Date(startDate as string)
+                };
+            } else if (endDate) {
+                clientsWhere.createdAt = {
+                    [Op.lte]: new Date(endDate as string)
+                };
+            }
+
             const clients = await Clients.findAll({
                 where: clientsWhere,
-                order: [['phone', 'DESC']],
+                order: orderClause,
                 include: [
                     {
                         model: RaffleNumbers,
