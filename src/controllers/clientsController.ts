@@ -124,6 +124,12 @@ class clientsController {
                             }
                         ],
                         order: [['reservedDate', 'DESC']]
+                    },
+                    {
+                        model: UserClients,
+                        as: 'userClients',
+                        attributes: [],
+                        where: { userId: req.user.id }
                     }
                 ],
                 order: [
