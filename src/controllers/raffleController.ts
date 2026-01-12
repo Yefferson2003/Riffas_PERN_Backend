@@ -1,17 +1,16 @@
 import { Request, Response } from 'express';
 import jwt from "jsonwebtoken";
 import { Op } from 'sequelize';
+import slugify from 'slugify';
+import { expirationDaysSchema } from '../middlewares/validateRaffle';
 import Payment from '../models/payment';
+import PayMethode from '../models/payMethode';
 import Raffle from '../models/raffle';
 import RaffleNumbers from '../models/raffle_numbers';
+import RafflePayMethode from '../models/rafflePayMethode';
+import SharedLink from '../models/sharedLink';
 import User from '../models/user';
 import UserRifa from '../models/user_raffle';
-import { v4 as uuidv4 } from "uuid";
-import SharedLink from '../models/sharedLink';
-import slugify from 'slugify';
-import PayMethode from '../models/payMethode';
-import RafflePayMethode from '../models/rafflePayMethode';
-import { expirationDaysSchema } from '../middlewares/validateRaffle';
 
 class raffleController {
 
@@ -44,7 +43,7 @@ class raffleController {
             const { count, rows: raffles } = await Raffle.findAndCountAll({
                 distinct: true,
                 where: filter,
-                include: [
+                include: [ 
                     ...(isUser
                         ? [
                             {

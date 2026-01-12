@@ -2,6 +2,7 @@ import { Column, DataType, ForeignKey, HasMany, Model, Table, BelongsToMany } fr
 import RaffleNumbers from "./raffle_numbers";
 import User from "./user";
 import UserClients from "./user_clients";
+import Purchase from "./purchase";
 
 @Table({
     tableName: 'clients'
@@ -44,5 +45,8 @@ class Clients extends Model {
     
     @HasMany(() => RaffleNumbers)
     raffleNumbers: RaffleNumbers[]
+
+    @HasMany(() => Purchase)
+    purchases: Purchase[]
 }
 export default Clients

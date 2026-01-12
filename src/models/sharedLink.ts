@@ -1,5 +1,6 @@
-import { Table, Column, Model, DataType, PrimaryKey, BelongsTo, ForeignKey } from "sequelize-typescript";
+import { Table, Column, Model, DataType, PrimaryKey, BelongsTo, ForeignKey, HasMany } from "sequelize-typescript";
 import Raffle from "./raffle";
+import Purchase from "./purchase";
 
 @Table({
     tableName: "shared_links",
@@ -39,6 +40,9 @@ class SharedLink extends Model {
 
     @BelongsTo(() => Raffle, 'raffleId')
     raffle: Raffle;
+
+    @HasMany(() => Purchase)
+    purchases: Purchase[];
 
 }
 

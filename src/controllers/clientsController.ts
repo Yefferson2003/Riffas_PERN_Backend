@@ -1,18 +1,194 @@
 import { Request, Response } from 'express';
-import { Op } from 'sequelize';
-import Clients from '../models/clients';
+import { Op, Sequelize } from 'sequelize';
 import { buyNumbersForClientSchema, clientSchema } from '../middlewares/validateClient';
-import UserClients from '../models/user_clients';
-import RaffleNumbers from '../models/raffle_numbers';
+import Clients from '../models/clients';
 import Payment from '../models/payment';
-import Raffle from '../models/raffle';
 import PayMethode from '../models/payMethode';
+import Purchase from '../models/purchase';
+import Raffle from '../models/raffle';
+import RaffleNumbers from '../models/raffle_numbers';
 import RafflePayMethode from '../models/rafflePayMethode';
-
-
+import UserClients from '../models/user_clients';
+import UserRifa from '../models/user_raffle';
 import { clientOrderMap } from '../utils';
 
 class clientsController {
+
+    static async getClientsSharedLinkAll(req: Request, res: Response) {
+        const { page = 1, limit = 15, search, startDate, endDate } = req.query;
+
+        const pageNumber = parseInt(page as string);
+        const limitNumber = parseInt(limit as string);
+        const offset = (pageNumber - 1) * limitNumber;
+        // const orderValue = parseInt(order as string) || 1;
+        // const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
+
+        try {
+            let clientsWhere: any = {};
+            const rolName = req.user.dataValues.rol?.dataValues?.name || req.user.dataValues.rol?.name || req.user.rol?.name || '';
+            const isResponsable = rolName === 'responsable';
+            const isVendedor = rolName === 'vendedor';
+            let userRaffleIds: number[] = [];
+            if (isResponsable || isVendedor) {
+                const userRifas = await UserRifa.findAll({
+                    where: { userId: req.user.id },
+                    attributes: ['rifaId']
+                });
+                userRaffleIds = userRifas.map((ur) => ur.rifaId ?? ur.dataValues.rifaId);
+                // Si no tiene rifas asociadas, forzar que no retorne nada
+                if (userRaffleIds.length === 0) {
+                    res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                    return;
+                }
+            }
+            //console.log('loggggggggggggggg', userRaffleIds);
+            
+
+            // Filtro de búsqueda
+            if (search) {
+                const searchConditions = [];
+                searchConditions.push({ phone: { [Op.like]: `%${search}%` } });
+                if (Op.iLike) {
+                    searchConditions.push({ firstName: { [Op.iLike]: `%${search}%` } });
+                    searchConditions.push({ lastName: { [Op.iLike]: `%${search}%` } });
+                    searchConditions.push({ address: { [Op.iLike]: `%${search}%` } });
+                } else {
+                    const searchStr = typeof search === 'string' ? search.toLowerCase() : '';
+                    searchConditions.push({ firstName: { [Op.like]: `%${searchStr}%` } });
+                    searchConditions.push({ lastName: { [Op.like]: `%${searchStr}%` } });
+                    searchConditions.push({ address: { [Op.like]: `%${searchStr}%` } });
+                }
+                clientsWhere[Op.or] = searchConditions;
+            }
+
+            // Filtro de números de rifa
+            let raffleNumbersWhere: any = {};
+            if (startDate && endDate) {
+                raffleNumbersWhere.reservedDate = {
+                    [Op.between]: [
+                        new Date(startDate as string),
+                        new Date(endDate as string)
+                    ]
+                };
+            } else if (startDate) {
+                raffleNumbersWhere.reservedDate = { [Op.gte]: new Date(startDate as string) };
+            } else if (endDate) {
+                raffleNumbersWhere.reservedDate = { [Op.lte]: new Date(endDate as string) };
+            }
+            if (userRaffleIds.length > 0) {
+                raffleNumbersWhere.raffleId = { [Op.in]: userRaffleIds };
+            }
+
+            // Solo clientes con al menos un número de rifa con purchase.source = 'shared_link' y rifa asociada
+            const { rows: clients, count } = await Clients.findAndCountAll({
+                distinct: true,
+                subQuery: false,
+                where: clientsWhere,
+                limit: limitNumber,
+                offset,
+                // order: orderClause,
+                include: [
+                    {
+                        model: RaffleNumbers,
+                        as: 'raffleNumbers',
+                        required: true,
+                        limit: 50,
+                        separate: true,
+                        where: raffleNumbersWhere,
+                        attributes: [
+                            'id',
+                            'number',
+                            'reservedDate',
+                            'paymentAmount',
+                            'paymentDue',
+                            'status',
+                            'clienteId',
+                            'raffleId',
+                            'purchaseId'
+                        ],
+                        include: [
+                            {
+                                model: Purchase,
+                                as: 'purchase',
+                                required: true,
+                                attributes: ['id', 'source'],
+                                where: {
+                                    source: 'shared_link',
+                                    ...(userRaffleIds.length > 0 ? { raffleId: { [Op.in]: userRaffleIds } } : {})
+                                }
+                            },
+                            {
+                                model: Raffle,
+                                as: 'raffle',
+                                attributes: ['id', 'name', 'playDate', 'price', 'color']
+                            }
+                        ],
+                        order: [['reservedDate', 'DESC']]
+                    }
+                ],
+                order: [
+                    [
+                        Sequelize.literal(`(
+                        SELECT MAX(rn."reservedDate")
+                        FROM "raffle_numbers" rn
+                        INNER JOIN "purchases" p ON p.id = rn."purchaseId"
+                        WHERE rn."clienteId" = "Clients"."id"
+                        AND p.source = 'shared_link'
+                        ${userRaffleIds.length > 0
+                            ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
+                            : ''}
+                        )`),
+                        'ASC'
+                    ]
+                    ]
+            });
+
+            // Obtener el total de números por rifa
+            const raffleIds: number[] = [];
+            clients.forEach(client => {
+                if (client.dataValues.raffleNumbers) {
+                    client.dataValues.raffleNumbers.forEach(num => {
+                        if (num.dataValues.raffleId && !raffleIds.includes(num.dataValues.raffleId)) {
+                            raffleIds.push(num.dataValues.raffleId);
+                        }
+                    });
+                }
+            });
+
+            let raffleTotals: Record<number, number> = {};
+            if (raffleIds.length > 0) {
+                const totals = await RaffleNumbers.findAll({
+                    where: { raffleId: { [Op.in]: raffleIds } },
+                    attributes: ['raffleId', [RaffleNumbers.sequelize.fn('COUNT', RaffleNumbers.sequelize.col('id')), 'totalNumbers']],
+                    group: ['raffleId']
+                });
+                totals.forEach((row) => {
+                    raffleTotals[row.dataValues.raffleId] = parseInt(row.dataValues.totalNumbers);
+                });
+            }
+
+            // Inyectar el total en cada objeto de rifa dentro raffleNumbers
+            clients.forEach(client => {
+                if (client.dataValues.raffleNumbers) {
+                    client.dataValues.raffleNumbers.forEach(num => {
+                        if (num.dataValues.raffle && num.dataValues.raffleId && raffleTotals[num.dataValues.raffleId]) {
+                            num.dataValues.raffle.dataValues.totalNumbers = raffleTotals[num.dataValues.raffleId];
+                        }
+                    });
+                }
+            });
+
+            res.json({
+                total: count,
+                clients,
+                totalPages: Math.ceil(count / limitNumber),
+                currentPage: pageNumber
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Hubo un Error al obtener los Clientes' });
+        }
+    }
 
     // Ruta para exportar todos los clientes y sus datos completos (sin paginación)
     static async getAllClientsForExport(req: Request, res: Response) {

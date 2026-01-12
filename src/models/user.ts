@@ -5,6 +5,7 @@ import Rol from "./rol";
 import UserRifa from "./user_raffle";
 import Clients from "./clients";
 import UserClients from "./user_clients";
+import Purchase from "./purchase";
 
 @Table({
     tableName: 'users'
@@ -109,6 +110,9 @@ class User extends Model{
 
     @HasMany(() => Expenses)
     expenses: Expenses[]
+
+    @HasMany(() => Purchase)
+    purchases: Purchase[]
 }
 
 export default User

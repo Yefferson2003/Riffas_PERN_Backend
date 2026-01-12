@@ -27,7 +27,7 @@ export const paymentMethodEnum = [
     tableName: 'payments'
 })
 
-class Payment extends Model {
+class  Payment extends Model {
     @Column({
         type: DataType.DECIMAL(10, 2),
         allowNull: false

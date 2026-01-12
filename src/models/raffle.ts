@@ -6,6 +6,7 @@ import Expenses from "./expenses";
 import RafflePayMethode from "./rafflePayMethode";
 import RaffleOffer from "./raffleOffers";
 import SharedLink from "./sharedLink";
+import Purchase from "./purchase";
 
 export const rifflesStatusEnum = ['finally', 'pendig', 'cancel'] as const;
 
@@ -118,6 +119,9 @@ class Raffle extends Model {
 
     @HasMany(() => SharedLink)
     sharedLinks: SharedLink[]
+    
+    @HasMany(() => Purchase)
+    purchases: Purchase[]
     
 }
 

@@ -91,6 +91,28 @@ router.post('/:raffleId/amount-number/:raffleNumberId',
     raffleNumbersControllers.amountRaffleNumber
 )
 
+router.put('/:raffleId/accept-shared-number/:raffleNumberId',
+    authenticate,
+    checkRole(['admin', 'responsable', 'vendedor']),
+    validateIdParam('raffleId'),
+    validateIdParam('raffleNumberId'),
+    raffleExists,
+    raffleNumberExists,
+    validateUserRaffle,
+    raffleNumbersControllers.acceptRaffleNumberShared
+)
+
+router.put('/:raffleId/reject-shared-number/:raffleNumberId',
+    authenticate,
+    checkRole(['admin', 'responsable', 'vendedor']),
+    validateIdParam('raffleId'),
+    validateIdParam('raffleNumberId'),
+    raffleExists,
+    raffleNumberExists,
+    validateUserRaffle,
+    raffleNumbersControllers.rejectRaffleNumberShared
+)
+
 router.put('/:raffleId/update-number/:raffleNumberId',
     authenticate,
     checkRole(['admin', 'responsable', 'vendedor']),

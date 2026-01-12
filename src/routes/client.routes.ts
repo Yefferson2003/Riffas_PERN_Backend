@@ -7,6 +7,12 @@ import { buyNumbersForClientSchema, clientSchema, userClientExist } from "../mid
 
 const router = Router()
 
+router.get('/shared-link',
+    authenticate,
+    checkRole(['admin', 'responsable', 'vendedor']),
+    clientsController.getClientsSharedLinkAll
+)
+
 router.get('/',
     authenticate,
     checkRole(['admin', 'responsable', 'vendedor']),

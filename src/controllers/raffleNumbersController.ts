@@ -8,6 +8,8 @@ import { amountRaffleNumberSchema, amountRaffleNumberSharedSchema, raffleNumbers
 import RafflePayMethode from '../models/rafflePayMethode';
 import PayMethode from '../models/payMethode';
 import RaffleOffer from '../models/raffleOffers';
+import Clients from '../models/clients';
+import Purchase from '../models/purchase';
 
 export function formatPostgresDateToReadable(dateString: string): string {
     const date = new Date(dateString);
@@ -1391,6 +1393,153 @@ class raffleNumbersControllers {
             res.status(500).json({error: 'Hubo un Error'})
         }
     }
+
+    static acceptRaffleNumberShared = async (req: Request, res: Response) => {
+        try {
+
+            // Validar fechas
+            const fechaActual = new Date();
+            const editDate = new Date(req.raffle.dataValues.editDate);
+            const playDate = new Date(req.raffle.dataValues.playDate);
+            if (fechaActual > editDate || fechaActual > playDate) {
+                res.status(400).json({ error: 'No se puede aceptar el número fuera del rango de fechas permitido.' });
+                return;
+            }
+
+            const raffeNumberStatus = req.raffleNumber.dataValues.status;
+            if (raffeNumberStatus && raffeNumberStatus !== 'apartado') {
+                res.status(400).json({ error: 'El número de rifa no está en estado apartado' });
+                return;
+            }
+
+            // Buscar el Payment válido (isValid true) asociado a este número, incluyendo método de pago
+            const payment = await Payment.findOne({
+                where: {
+                    riffleNumberId: req.raffleNumber.id,
+                    isValid: true
+                },
+                include: [{
+                    model: RafflePayMethode,
+                    as: 'rafflePayMethode',
+                    include: [{
+                        model: PayMethode,
+                        as: 'payMethode',
+                    }]
+                }]
+            });
+
+            let reference = null;
+            let paymentMethodId = null;
+            let payMethodeName = '';
+            if (payment) {
+                reference = payment.dataValues.reference;
+                paymentMethodId = payment.dataValues.paymentMethodId;
+                if (payment.dataValues.rafflePayMethode && payment.dataValues.rafflePayMethode.dataValues.payMethode) {
+                    payMethodeName = payment.dataValues.rafflePayMethode.dataValues.payMethode.dataValues.name;
+                }
+                // Eliminar (invalidar) el payment anterior
+                await payment.update({ isValid: false, reference: null});
+            }
+
+            // Lógica según el método de pago
+            const reservedDate = req.raffleNumber.reservedDate || new Date();
+            const deuda = Number(req.raffleNumber.dataValues.paymentDue) || 0;
+            const abono = Number(req.raffleNumber.dataValues.paymentAmount) || 0;
+            const total = abono + deuda;
+
+            if (payMethodeName && payMethodeName.toLowerCase() === 'apartado') {
+                // Si es apartado, dejar el número en pending, abonos y deudas igual, payment amount igual o 0, paidAt null, método de pago 'apartado'
+                await Payment.create({
+                    riffleNumberId: req.raffleNumber.id,
+                    amount: abono,
+                    paidAt: null,
+                    userId: req.user.id,
+                    paymentMethodId: paymentMethodId,
+                    reference: reference,
+                    isValid: true
+                });
+                await req.raffleNumber.update({
+                    status: 'pending',
+                    paymentDue: deuda,
+                    paymentAmount: abono
+                });
+            } else {
+                // Si es otro método de pago, pagar el número completo y marcar como vendido
+                await Payment.create({
+                    riffleNumberId: req.raffleNumber.id,
+                    amount: deuda,
+                    paidAt: reservedDate,
+                    userId: req.user.id,
+                    paymentMethodId: paymentMethodId,
+                    reference: reference,
+                    isValid: true
+                });
+                await req.raffleNumber.update({
+                    status: 'sold',
+                    paymentDue: 0,
+                    paymentAmount: total
+                });
+            }
+
+            res.send('Número de rifa aceptado correctamente.');
+
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error en la aceptación del número'});
+        }
+    }
+
+    static rejectRaffleNumberShared = async (req: Request, res: Response) => {
+        try {
+            // Validar fechas
+            const fechaActual = new Date();
+            const editDate = new Date(req.raffle.dataValues.editDate);
+            const playDate = new Date(req.raffle.dataValues.playDate);
+            if (fechaActual > editDate || fechaActual > playDate) {
+                res.status(400).json({ error: 'No se puede aceptar el número fuera del rango de fechas permitido.' });
+                return;
+            }
+
+            const raffeNumberStatus = req.raffleNumber.dataValues.status;
+            if (raffeNumberStatus && raffeNumberStatus !== 'apartado') {
+                res.status(400).json({ error: 'El número de rifa no está en estado apartado' });
+                return;
+            }
+
+            
+            // Buscar todos los pagos válidos (isValid true) asociados a este número
+            const payments = await Payment.findAll({
+                where: {
+                    riffleNumberId: req.raffleNumber.id,
+                    isValid: true
+                },
+            });
+
+            // Actualizar todos los pagos encontrados a isValid: false
+            for (const payment of payments) {
+                await payment.update({ isValid: false });
+            }
+
+            await req.raffleNumber.update({
+                status: 'available',
+                paymentDue: req.raffle.dataValues.price,
+                paymentAmount: 0,
+                firstName: null,
+                lastName: null,
+                phone: null,
+                address: null,
+                reservedDate: null,
+                clienteId: null,
+                purchaseId: null
+            });
+
+            res.send('Número de rifa rechazado');
+
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error en la aceptación del número'});
+        }
+    }
     
     static amountRaffleNumberShared = async (req: Request, res: Response) => {
 
@@ -1401,6 +1550,14 @@ class raffleNumbersControllers {
         }
 
         const { firstName, lastName, phone, address, amount, paymentMethod, reference, raffleNumbersIds} = parsed.data;
+
+        if (phone) {
+            req.client = await Clients.findOne({ where: { phone } });
+        }
+
+        if (!req.client) {
+            req.client = await Clients.create({ firstName, lastName, phone, address });
+        }
 
         const referenceExist = await Payment.findOne({
             where: { reference }
@@ -1521,17 +1678,27 @@ class raffleNumbersControllers {
             // Crear todos los pagos de apartado en lote
             await Payment.bulkCreate(paymentsData);
 
+            const purchase = await Purchase.create({
+                raffleId: req.raffle.id,
+                clientId: req.client.id,
+                userId: null, // null para usuarios no registrados
+                source: 'shared_link',
+                sharedLinkId: null
+            })
+
             // Actualizar todos los números a estado "apartado"
             await RaffleNumbers.update(
                 {
                     status: "apartado", 
                     reservedDate: fechaActual,
-                    firstName,
-                    lastName,
-                    phone,
-                    address,
+                    firstName: req.client.dataValues.firstName,
+                    lastName: req.client.dataValues.lastName,
+                    phone: req.client.dataValues.phone,
+                    address: req.client.dataValues.address,
                     paymentAmount: 0, 
                     paymentDue: unitPrice, 
+                    purchaseId: purchase.id,
+                    clienteId: req.client.id
                 },
                 {
                     where: {
@@ -1539,6 +1706,8 @@ class raffleNumbersControllers {
                     }
                 }
             );
+
+
 
             // Obtener los números actualizados con sus pagos
             const updatedRaffleNumbers = await RaffleNumbers.findAll({

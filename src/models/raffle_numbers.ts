@@ -2,6 +2,7 @@ import { BelongsTo, Column, DataType, Default, ForeignKey, HasMany, Model, Table
 import Raffle from "./raffle";
 import Payment from "./payment";
 import Clients from "./clients";
+import Purchase from "./purchase";
 
 export const rifflesNumbersStatusEnum = ['available', 'sold', 'pending', 'apartado'] as const;
 export const identificationTypeEnum = ['CC', 'TI', 'CE'] as const;
@@ -103,6 +104,16 @@ class RaffleNumbers extends Model{
 
     @BelongsTo(() => Clients)
     client: Clients
+
+    @ForeignKey(() => Purchase)
+    @Column({
+        type: DataType.INTEGER,
+        allowNull: true
+    })
+    purchaseId: number;
+
+    @BelongsTo(() => Purchase)
+    purchase: Purchase;
 
 }
 
