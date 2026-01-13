@@ -129,6 +129,7 @@ class clientsController {
                         model: UserClients,
                         as: 'userClients',
                         attributes: [],
+                        required: true,
                         where: { userId: req.user.id }
                     }
                 ],
