@@ -92,7 +92,7 @@ class clientsController {
             const { rows: clients, count } = await Clients.findAndCountAll({
                 distinct: true,
                 subQuery: false,
-                // where: clientsWhere,
+                where: clientsWhere,
                 limit: limitNumber,
                 offset,
                 // order: orderClause,
