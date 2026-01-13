@@ -33,8 +33,7 @@ class clientsController {
             const clientsIds = userRifas.map((ur) => ur.dataValues.clientId ?? ur.dataValues.clientId);
 
             let clientsWhere: any = {};
-           
-
+            
             const rolName = req.user.dataValues.rol?.dataValues?.name || req.user.dataValues.rol?.name || req.user.rol?.name || '';
             const isResponsable = rolName === 'responsable';
             const isVendedor = rolName === 'vendedor';
@@ -167,7 +166,7 @@ class clientsController {
                             ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
                             : ''}
                         )`),
-                        'ASC'
+                        'DESC'
                     ]
                 ]
             });
