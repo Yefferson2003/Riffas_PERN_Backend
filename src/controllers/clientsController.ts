@@ -24,7 +24,17 @@ class clientsController {
         // const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
 
         try {
+
+            const userRifas = await UserClients.findAll({
+                attributes: ['clientId'],
+                where: { userId: req.user.id },
+            })
+
+            const clientsIds = userRifas.map((ur) => ur.dataValues.clientId ?? ur.dataValues.clientId);
+
             let clientsWhere: any = {};
+            clientsWhere.id = { [Op.in]: clientsIds };
+
             const rolName = req.user.dataValues.rol?.dataValues?.name || req.user.dataValues.rol?.name || req.user.rol?.name || '';
             const isResponsable = rolName === 'responsable';
             const isVendedor = rolName === 'vendedor';
@@ -75,9 +85,9 @@ class clientsController {
             } else if (endDate) {
                 raffleNumbersWhere.reservedDate = { [Op.lte]: new Date(endDate as string) };
             }
-            if (userRaffleIds.length > 0) {
-                raffleNumbersWhere.raffleId = { [Op.in]: userRaffleIds };
-            }
+            // if (userRaffleIds.length > 0) {
+            //     raffleNumbersWhere.raffleId = { [Op.in]: userRaffleIds };
+            // }
 
             // Solo clientes con al menos un número de rifa con purchase.source = 'shared_link' y rifa asociada
             const { rows: clients, count } = await Clients.findAndCountAll({
