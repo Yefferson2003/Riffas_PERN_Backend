@@ -128,10 +128,10 @@ class clientsController {
                                 attributes: ['id', 'source'],
                                 where: {
                                     source: 'shared_link',
-                                    [Op.or]: [
-                                        { clienteId: { [Op.in]: clientsIds } },
-                                        ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
-                                    ]
+                                    // [Op.or]: [
+                                    //     { clienteId: { [Op.in]: clientsIds } },
+                                    //     ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
+                                    // ]
                                 }
                             },
                             {
