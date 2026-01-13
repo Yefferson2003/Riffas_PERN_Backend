@@ -88,14 +88,13 @@ class clientsController {
             //     raffleNumbersWhere.raffleId = { [Op.in]: userRaffleIds };
             // }
 
-            // Solo clientes con al menos un número de rifa con purchase.source = 'shared_link' y rifa asociada
+            // Solo clientes con al menos un número de rifa asociado al usuario o a sus rifas, y con purchase.source = 'shared_link' y (clienteId o raffleId del usuario)
             const { rows: clients, count } = await Clients.findAndCountAll({
                 distinct: true,
                 subQuery: false,
                 where: clientsWhere,
                 limit: limitNumber,
                 offset,
-                // order: orderClause,
                 include: [
                     {
                         model: RaffleNumbers,
@@ -103,7 +102,13 @@ class clientsController {
                         required: true,
                         limit: 50,
                         separate: true,
-                        where: raffleNumbersWhere,
+                        where: {
+                            ...raffleNumbersWhere,
+                            [Op.or]: [
+                                { clienteId: { [Op.in]: clientsIds } },
+                                ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
+                            ]
+                        },
                         attributes: [
                             'id',
                             'number',
@@ -124,7 +129,7 @@ class clientsController {
                                 where: {
                                     source: 'shared_link',
                                     [Op.or]: [
-                                        { clientId: { [Op.in]: clientsIds } },
+                                        { clienteId: { [Op.in]: clientsIds } },
                                         ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
                                     ]
                                 }
@@ -136,14 +141,7 @@ class clientsController {
                             }
                         ],
                         order: [['reservedDate', 'DESC']]
-                    },
-                    // {
-                    //     model: UserClients,
-                    //     as: 'userClients',
-                    //     attributes: [],
-                    //     required: true,
-                    //     where: { userId: req.user.id }
-                    // }
+                    }
                 ],
                 order: [
                     [
@@ -159,7 +157,7 @@ class clientsController {
                         )`),
                         'ASC'
                     ]
-                    ]
+                ]
             });
 
             // Obtener el total de números por rifa
