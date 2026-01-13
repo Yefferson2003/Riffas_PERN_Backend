@@ -85,9 +85,9 @@ class clientsController {
             }
 
             // Filtro por estados de las rifas (status)
+            let statusArray: string[] = [];
             if (filter) {
                 // filter puede ser un string o un array de strings
-                let statusArray: string[] = [];
                 if (Array.isArray(filter)) {
                     statusArray = (filter as any[]).map(String);
                 } else if (typeof filter === 'string') {
@@ -115,20 +115,30 @@ class clientsController {
 
             clientsWhere.id = { [Op.in]: clientesPurchaseIds };
 
+            const statusSql =
+            statusArray.length > 0
+                ? `AND rn.status IN (${statusArray.map(s => `'${s}'`).join(',')})`
+                : '';
+
+
             const { rows: clients, count } = await Clients.findAndCountAll({
                 distinct: true,
                 subQuery: false,
                 where: {
                     ...clientsWhere,
                     [Op.and]: Sequelize.literal(`
-                        EXISTS (
+                    EXISTS (
                         SELECT 1
                         FROM "raffle_numbers" rn
                         INNER JOIN "purchases" p ON p.id = rn."purchaseId"
                         WHERE rn."clienteId" = "Clients"."id"
                         AND p.source = 'shared_link'
-                        )
-                    `)
+                        ${statusSql}
+                        ${userRaffleIds.length > 0
+                            ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
+                            : ''}
+                    )
+                `)
                 },
                 limit: limitNumber,
                 offset,
@@ -183,14 +193,15 @@ class clientsController {
                 order: [
                     [
                         Sequelize.literal(`(
-                        SELECT MAX(rn."reservedDate")
-                        FROM "raffle_numbers" rn
-                        INNER JOIN "purchases" p ON p.id = rn."purchaseId"
-                        WHERE rn."clienteId" = "Clients"."id"
-                        AND p.source = 'shared_link'
-                        ${userRaffleIds.length > 0
-                            ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
-                            : ''}
+                            SELECT MAX(rn."reservedDate")
+                            FROM "raffle_numbers" rn
+                            INNER JOIN "purchases" p ON p.id = rn."purchaseId"
+                            WHERE rn."clienteId" = "Clients"."id"
+                            AND p.source = 'shared_link'
+                            ${statusSql}
+                            ${userRaffleIds.length > 0
+                                ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
+                                : ''}
                         )`),
                         'DESC'
                     ]
