@@ -125,13 +125,13 @@ class clientsController {
                         ],
                         order: [['reservedDate', 'DESC']]
                     },
-                    {
-                        model: UserClients,
-                        as: 'userClients',
-                        attributes: [],
-                        required: true,
-                        where: { userId: req.user.id }
-                    }
+                    // {
+                    //     model: UserClients,
+                    //     as: 'userClients',
+                    //     attributes: [],
+                    //     required: true,
+                    //     where: { userId: req.user.id }
+                    // }
                 ],
                 order: [
                     [

@@ -36,8 +36,6 @@ class raffleNumbersControllers {
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
-
-        console.log('...............................', search);
         
 
         try {
