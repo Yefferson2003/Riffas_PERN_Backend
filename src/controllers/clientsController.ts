@@ -33,7 +33,7 @@ class clientsController {
             const clientsIds = userRifas.map((ur) => ur.dataValues.clientId ?? ur.dataValues.clientId);
 
             let clientsWhere: any = {};
-            clientsWhere.id = { [Op.in]: clientsIds };
+           
 
             const rolName = req.user.dataValues.rol?.dataValues?.name || req.user.dataValues.rol?.name || req.user.rol?.name || '';
             const isResponsable = rolName === 'responsable';
@@ -89,6 +89,18 @@ class clientsController {
             // }
 
             // Solo clientes con al menos un número de rifa asociado al usuario o a sus rifas, y con purchase.source = 'shared_link' y (clienteId o raffleId del usuario)
+
+            const purchases = await Purchase.findAll({
+                where: {
+                    source: 'shared_link',
+                    ...(userRaffleIds.length > 0 ? { raffleId: { [Op.in]: userRaffleIds } } : {})
+                },
+                attributes: ['id', 'clientId']
+            });
+            const clientesPurchaseIds = [...clientsIds, ...purchases.map(p => p.dataValues.clientId)]
+
+            clientsWhere.id = { [Op.in]: clientesPurchaseIds };
+
             const { rows: clients, count } = await Clients.findAndCountAll({
                 distinct: true,
                 subQuery: false,
@@ -105,7 +117,7 @@ class clientsController {
                         where: {
                             ...raffleNumbersWhere,
                             [Op.or]: [
-                                { clienteId: { [Op.in]: clientsIds } },
+                                { clienteId: { [Op.in]: clientesPurchaseIds } },
                                 ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
                             ]
                         },
