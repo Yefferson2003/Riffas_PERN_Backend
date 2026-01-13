@@ -33,7 +33,7 @@ class clientsController {
             const clientsIds = userRifas.map((ur) => ur.dataValues.clientId ?? ur.dataValues.clientId);
 
             let clientsWhere: any = {};
-            clientsWhere.id = { [Op.in]: clientsIds };
+            // clientsWhere.id = { [Op.in]: clientsIds };
 
             const rolName = req.user.dataValues.rol?.dataValues?.name || req.user.dataValues.rol?.name || req.user.rol?.name || '';
             const isResponsable = rolName === 'responsable';
@@ -51,7 +51,6 @@ class clientsController {
                     return;
                 }
             }
-            //console.log('loggggggggggggggg', userRaffleIds);
             
 
             // Filtro de búsqueda
@@ -93,7 +92,7 @@ class clientsController {
             const { rows: clients, count } = await Clients.findAndCountAll({
                 distinct: true,
                 subQuery: false,
-                where: clientsWhere,
+                // where: clientsWhere,
                 limit: limitNumber,
                 offset,
                 // order: orderClause,
@@ -124,7 +123,10 @@ class clientsController {
                                 attributes: ['id', 'source'],
                                 where: {
                                     source: 'shared_link',
-                                    ...(userRaffleIds.length > 0 ? { raffleId: { [Op.in]: userRaffleIds } } : {})
+                                    [Op.or]: [
+                                        { clientId: { [Op.in]: clientsIds } },
+                                        ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
+                                    ]
                                 }
                             },
                             {
