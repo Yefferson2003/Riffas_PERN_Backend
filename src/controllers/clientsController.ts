@@ -15,7 +15,7 @@ import { clientOrderMap } from '../utils';
 class clientsController {
 
     static async getClientsSharedLinkAll(req: Request, res: Response) {
-        const { page = 1, limit = 15, search, startDate, endDate } = req.query;
+        const { page = 1, limit = 15, search, startDate, endDate, filter } = req.query;
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -82,6 +82,21 @@ class clientsController {
                 raffleNumbersWhere.reservedDate = { [Op.gte]: new Date(startDate as string) };
             } else if (endDate) {
                 raffleNumbersWhere.reservedDate = { [Op.lte]: new Date(endDate as string) };
+            }
+
+            // Filtro por estados de las rifas (status)
+            if (filter) {
+                // filter puede ser un string o un array de strings
+                let statusArray: string[] = [];
+                if (Array.isArray(filter)) {
+                    statusArray = (filter as any[]).map(String);
+                } else if (typeof filter === 'string') {
+                    // Si viene como string separado por comas
+                    statusArray = filter.split(',').map((s) => s.trim());
+                }
+                if (statusArray.length > 0) {
+                    raffleNumbersWhere.status = { [Op.in]: statusArray };
+                }
             }
             // if (userRaffleIds.length > 0) {
             //     raffleNumbersWhere.raffleId = { [Op.in]: userRaffleIds };
@@ -166,7 +181,7 @@ class clientsController {
                             ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
                             : ''}
                         )`),
-                        'DESC'
+                        'ASC'
                     ]
                 ]
             });
