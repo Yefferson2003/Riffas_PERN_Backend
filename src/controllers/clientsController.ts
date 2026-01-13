@@ -118,7 +118,18 @@ class clientsController {
             const { rows: clients, count } = await Clients.findAndCountAll({
                 distinct: true,
                 subQuery: false,
-                where: clientsWhere,
+                where: {
+                    ...clientsWhere,
+                    [Op.and]: Sequelize.literal(`
+                        EXISTS (
+                        SELECT 1
+                        FROM "raffle_numbers" rn
+                        INNER JOIN "purchases" p ON p.id = rn."purchaseId"
+                        WHERE rn."clienteId" = "Clients"."id"
+                        AND p.source = 'shared_link'
+                        )
+                    `)
+                },
                 limit: limitNumber,
                 offset,
                 include: [
@@ -181,7 +192,7 @@ class clientsController {
                             ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
                             : ''}
                         )`),
-                        'ASC'
+                        'DESC'
                     ]
                 ]
             });
