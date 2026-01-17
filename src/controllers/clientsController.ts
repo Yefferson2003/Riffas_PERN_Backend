@@ -243,9 +243,42 @@ class clientsController {
                 }
             });
 
+            // Enriquecer cada número de rifa con su último pago válido y sus includes
+            const enrichedClients = await Promise.all(clients.map(async (client) => {
+                const clientObj = client.toJSON();
+                if (clientObj.raffleNumbers && clientObj.raffleNumbers.length > 0) {
+                    clientObj.raffleNumbers = await Promise.all(clientObj.raffleNumbers.map(async (rn) => {
+                        const lastValidPayment = await Payment.findOne({
+                            where: { riffleNumberId: rn.id, isValid: true },
+                            attributes: ['id', 'amount', 'createdAt', 'reference', 'riffleNumberId', 'paidAt',],
+                            order: [['createdAt', 'DESC']],
+                            include: [
+                                {
+                                    model: RafflePayMethode,
+                                    as: 'rafflePayMethode',
+                                    attributes: ['id', 'accountNumber', 'accountHolder', 'bankName', 'isActive'],
+                                    include: [
+                                        {
+                                            model: PayMethode,
+                                            as: 'payMethode',
+                                            attributes: ['id', 'name', 'icon', 'isActive']
+                                        }
+                                    ]
+                                }
+                            ]
+                        });
+                        return {
+                            ...rn,
+                            lastValidPayment
+                        };
+                    }));
+                }
+                return clientObj;
+            }));
+
             res.json({
                 total: count,
-                clients,
+                clients: enrichedClients,
                 totalPages: Math.ceil(count / limitNumber),
                 currentPage: pageNumber
             });
