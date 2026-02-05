@@ -4,7 +4,7 @@ import Payment from '../models/payment';
 import RaffleNumbers from '../models/raffle_numbers';
 import Rol from '../models/rol';
 import User from '../models/user';
-import { amountRaffleNumberSchema, amountRaffleNumberSharedSchema, raffleNumbersIdsShema, sellRaffleNumbersSchema } from '../middlewares/validateRaffle';
+import { amountRaffleNumberSchema, amountRaffleNumberSharedSchema, raffleNumbersIdsShema, sellRaffleNumbersSchema, updateRaffleNumber } from '../middlewares/validateRaffle';
 import RafflePayMethode from '../models/rafflePayMethode';
 import PayMethode from '../models/payMethode';
 import RaffleOffer from '../models/raffleOffers';
@@ -1745,7 +1745,15 @@ class raffleNumbersControllers {
 
 
     static updateRaffleNumber = async (req: Request, res: Response) => {
-        const { phone, address} = req.body
+
+        const parsed = updateRaffleNumber.safeParse(req.body);
+        
+        if (!parsed.success) {
+            res.status(400).json({ error: 'Datos Invalidos' });
+            return 
+        }
+
+        const { phone, address, firstName, lastName} = parsed.data;
         try {
 
             const existingPayment = await Payment.findOne({
@@ -1757,12 +1765,30 @@ class raffleNumbersControllers {
                 res.status(403).json({ error: "No puedes actualizar el numero apartado por otro usuario." });
                 return
             }
-            await req.raffleNumber.update({
-                phone,
-                address
+
+            const userExist = await User.findOne({
+                where: {
+                    phone
+                }
             })
 
-            res.send('Numero de rifa actualizada correctamnete')
+            if (userExist) {
+                await req.raffleNumber.update({
+                    phone: userExist.dataValues.phone,
+                    address: userExist.dataValues.address,
+                    firstName: userExist.dataValues.firstName,
+                    lastName: userExist.dataValues.lastName
+                })
+            } else {
+                await req.raffleNumber.update({
+                    phone,
+                    address,
+                    firstName,
+                    lastName
+                })
+            }
+
+            res.send('Datos actualizados correctamente')
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})

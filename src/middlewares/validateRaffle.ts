@@ -251,15 +251,13 @@ export const validateRaffleNumbersStatus = async (req: Request, res: Response, n
     }
 };
 
+// Reutilizar validaciones de amountRaffleNumberSchema
 export const updateRaffleNumber = z.object({
-    phone: z
-        .string()
-        .min(1, "Teléfono obligatorio"),
-    address: z
-        .string()
-        .min(5, "La dirección es obligatoria y debe tener al menos 5 caracteres")
-        .max(100, "La dirección no debe exceder 100 caracteres"),
-})
+    firstName: amountRaffleNumberSchema.shape.firstName,
+    lastName: amountRaffleNumberSchema.shape.lastName,
+    phone: amountRaffleNumberSchema.shape.phone,
+    address: amountRaffleNumberSchema.shape.address,
+});
 export const URLRaffleSchema = z.object({
     raffleId: z
         .number()
