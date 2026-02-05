@@ -77,6 +77,14 @@ class User extends Model{
     })
     createdBy: number
 
+    @Default(null)
+    @Column({
+        type: DataType.TEXT,
+        allowNull: true,
+        defaultValue: null
+    })
+    organizationId: string
+
     @ForeignKey(() => Rol)
     @Column({
         type: DataType.INTEGER,

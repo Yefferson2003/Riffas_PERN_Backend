@@ -35,7 +35,7 @@ class userController {
 
             const {count, rows: users} = await User.findAndCountAll({
                 distinct: true,
-                attributes: ['id', 'firstName','lastName', 'identificationType', 'identificationNumber', 'phone', 'email', 'address', 'createdAt', 'isActive'],
+                attributes: ['id', 'firstName','lastName', 'identificationType', 'identificationNumber', 'phone', 'email', 'address', 'createdAt', 'isActive', 'organizationId'],
                 where: userWhere,
                 include: [
                     {

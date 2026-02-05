@@ -10,6 +10,7 @@ import raffleOffersRoutes from './raffleOffers.routes'
 import offersRoutes from './offer.routes'
 import clientRoutes from './client.routes'
 import whatsappRoutes from './whatsapp.routes'
+import engageLabRoutes from './engageLab.routes'
 
 const router = Router()
 
@@ -24,5 +25,7 @@ router.use('/raffle-offers', raffleOffersRoutes)
 router.use('/offers', offersRoutes)
 router.use('/clients', clientRoutes)
 router.use('/whatsapp', whatsappRoutes)
+router.use('/engageLab', engageLabRoutes)
+
 
 export default router

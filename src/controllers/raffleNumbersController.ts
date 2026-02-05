@@ -463,64 +463,56 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbersForExel = async (req: Request, res: Response) => {
-        const { page = 1, limit = 1000} = req.query
+            try {
+                let filter : any = {}
+                filter.raffleId = req.raffle.id
 
-        const pageNumber = parseInt(page as string);
-        const limitNumber = parseInt(limit as string);
-        const offset = (pageNumber - 1) * limitNumber;
-        try {
+                // Sin limitaciones: obtener todos los números de la rifa
+                const { count, rows: raffleNumbers } = await RaffleNumbers.findAndCountAll({
+                    where: filter,
+                    attributes: ['id', 'number', 'status', 'reservedDate', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
+                    include: [
+                        {
+                            model: Payment,
+                            as: 'payments',
+                            attributes: ['amount', 'isValid', 'createdAt', 'reference'],
+                            include: [
+                                {
+                                    model: User,
+                                    as: 'user',
+                                    attributes: ['firstName', 'lastName', 'identificationNumber']
+                                },
+                                {
+                                    model: RafflePayMethode,
+                                    as: 'rafflePayMethode',
+                                    attributes: ['id', 'accountNumber', 'accountHolder', 'bankName'],
+                                    include: [
+                                        {
+                                            model: PayMethode,
+                                            as: 'payMethode',
+                                            attributes: ['name', 'id', 'isActive']
+                                        }
+                                    ]
+                                }
+                            ],
+                            order: [['createdAt', 'ASC']],
+                            separate: true,
+                        }
+                    ],
+                    order: [['number', 'ASC']],
+                });
 
-            let filter : any = {}
-
-            filter.raffleId = req.raffle.id
-
-            const { count, rows: raffleNumbers } = await RaffleNumbers.findAndCountAll({
-                where: filter,
-                attributes: ['id', 'number', 'status', 'reservedDate', 'firstName', 'lastName', 'phone', 'address', 'paymentAmount', 'paymentDue'],
-                include: [
-                    {
-                        model: Payment,
-                        as: 'payments',
-                        attributes: ['amount', 'isValid', 'createdAt', 'reference'], // Asegúrate de incluir el campo de fecha
-                        include: [
-                            {
-                                model: User,
-                                as: 'user',
-                                attributes: ['firstName', 'lastName', 'identificationNumber']
-                            },
-                            {
-                                model: RafflePayMethode,
-                                as: 'rafflePayMethode',
-                                attributes: ['id', 'accountNumber', 'accountHolder', 'bankName'],
-                                include: [
-                                    {
-                                        model: PayMethode,
-                                        as: 'payMethode',
-                                        attributes: ['name', 'id', 'isActive']
-                                    }
-                                ]
-                            }
-                        ],
-                        order: [['createdAt', 'ASC']], // Orden por fecha ascendente (más vieja al inicio)
-                        separate: true, // Hace la consulta separada solo para los pagos
-                    }
-                ],
-                limit: limitNumber,
-                offset,
-                order: [['number', 'ASC']],
-            });
-            
-
-            res.json({
-                total: count,
-                raffleNumbers,
-                totalPages: Math.ceil(count / limitNumber),
-                currentPage: pageNumber,
-            });
-        } catch (error) {
-            console.log(error);
-            res.status(500).json({error: 'Hubo un Error'})
-        }
+                // Mantener la estructura de respuesta para el frontend
+                res.json({
+                    total: count,
+                    raffleNumbers,
+                    totalPages: 1,
+                    currentPage: 1,
+                });
+            } catch (error) {
+                console.log(error);
+                res.status(500).json({error: 'Hubo un Error'})
+            }
     }
 
     static getRaffleNumberById = async (req: Request, res: Response) => {
