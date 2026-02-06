@@ -1,7 +1,7 @@
 import { Column, DataType, HasMany, Model, Table } from "sequelize-typescript";
 import User from "./user";
 
-export const rolEnum = ["responsable", "vendedor"] as const
+export const rolEnum = ["admin", "responsable", "vendedor"] as const
 
 @Table({
     tableName: 'roles'

@@ -10,6 +10,8 @@ import PayMethode from "../models/payMethode";
 import RafflePayMethode from "../models/rafflePayMethode";
 import RaffleOffer from "../models/raffleOffers";
 import Clients from "../models/clients";
+import Moneda from "../models/moneda";
+import UserTasas from "../models/userTasas";
 
 declare global { 
     namespace Express {
@@ -22,11 +24,13 @@ declare global {
             rafflePayMethod: RafflePayMethode
             raffleOffer: RaffleOffer
             client: Clients
+            moneda: Moneda
+            tasa: UserTasas
         }
     }
 }
 
-const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode | RaffleOffer | Clients) {
+const elementExists = function (res:Response, model: User | Raffle | RaffleNumbers | Expenses | Awards | PayMethode | RafflePayMethode | RaffleOffer | Clients | Moneda | UserTasas | null) {
     if (!model) {
         const error = new Error('Elemento no Encontrado')
         res.status(404).json({error: error.message})
@@ -192,6 +196,30 @@ export const clientExists = async (req: Request, res: Response, next: NextFuncti
         const client = await Clients.findByPk(clientId)
         if (!elementExists(res, client)) return
         req.client = client
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+
+export const monedaExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { monedaId } = req.params
+        const moneda = await Moneda.findByPk(monedaId)
+        if (!elementExists(res, moneda)) return
+        req.moneda = moneda
+        next()
+    } catch (error) {
+        res.status(500).json({error: 'Hubo un Error - models'})
+    }
+}
+
+export const userTasaExists = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+        const { tasaId } = req.params
+        const tasa = await UserTasas.findByPk(tasaId)
+        if (!elementExists(res, tasa)) return
+        req.tasa = tasa
         next()
     } catch (error) {
         res.status(500).json({error: 'Hubo un Error - models'})
