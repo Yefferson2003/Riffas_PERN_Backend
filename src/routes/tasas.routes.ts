@@ -3,7 +3,7 @@ import { authenticate, checkRole } from "../middlewares/auth";
 import TasaController from "../controllers/tasaController";
 import { validateIdParam, validateSchema } from "../middlewares/validateAuth";
 import { createMonedaSchema, createTasaSchema, updateMonedaSchema, updateTasaSchema } from "../middlewares/validateTasas";
-import { monedaExists, userTasaExists } from "../middlewares/model";
+import { monedaExists, raffleExists, userTasaExists } from "../middlewares/model";
 
 const router = Router();
 
@@ -41,6 +41,11 @@ router.get('/user-tasas',
     authenticate,
     checkRole(['admin', 'responsable', 'vendedor']),
     TasaController.getAllUserTasas
+)
+router.get('/user-tasas/shared-url/:raffleId',
+    validateIdParam('raffleId'),
+    raffleExists,
+    TasaController.getAllUserTasasSharedUrl
 )
 
 router.post('/user-tasas/moneda/:monedaId',

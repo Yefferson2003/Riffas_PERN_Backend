@@ -1,6 +1,7 @@
 import { Request, Response } from 'express'
 import Moneda from '../models/moneda';
 import UserTasas from '../models/userTasas';
+import UserRifa from '../models/user_raffle';
 
 
 class TasaController { 
@@ -100,7 +101,6 @@ class TasaController {
                     ]
                 })
                 
-                console.log('tasas:', tasas);
                 
 
                 res.status(200).json({
@@ -128,7 +128,47 @@ class TasaController {
                 tasas: tasas
             })
 
-            console.log('tasas:', tasas);
+
+        } catch (error) {
+            console.error('Error en la obtención de tasas:', error);
+            res.status(500).json({
+                error: 'Error interno del servidor'
+            });
+        }
+    }
+
+    static async getAllUserTasasSharedUrl(req: Request, res: Response) {
+        try {
+            // Buscar el UserRifa con rol 'responsable' para la rifa indicada
+            const userRaffle = await UserRifa.findOne({
+                attributes: ['id', 'userId'],
+                where: {
+                    rifaId: req.raffle.id,
+                    role: 'responsable'
+                },
+            });
+
+            if (!userRaffle) {
+                res.status(404).json({ error: 'No se encontró un usuario responsable para esta rifa' });
+                return;
+            }
+
+            const tasas = await UserTasas.findAll({
+                attributes: ['id', 'value'],
+                where: {
+                    userResponsableId: userRaffle.dataValues.userId,
+                },
+                include: [
+                    {
+                        model: Moneda,
+                        as: 'moneda',
+                        attributes: ['id', 'name', 'symbol']
+                    }
+                ]
+            })
+
+            // Aquí puedes continuar la lógica que necesites usando userRaffle
+            res.status(200).json({ tasas: tasas });
 
         } catch (error) {
             console.error('Error en la obtención de tasas:', error);
