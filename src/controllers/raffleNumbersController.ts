@@ -406,7 +406,7 @@ class raffleNumbersControllers {
             const { raffleNumbersIds } = parsed.data
 
             const raffleNumbers = await RaffleNumbers.findAll({
-                attributes: ['id', 'number', 'status', 'paymentDue', 'paymentAmount', 'firstName', 'lastName', 'phone', 'address'],
+                attributes: ['id', 'number', 'status', 'paymentDue', 'paymentAmount', 'firstName', 'lastName', 'phone', 'address', 'reservedDate'],
                 where: {
                     id: {
                         [Op.in]: raffleNumbersIds
