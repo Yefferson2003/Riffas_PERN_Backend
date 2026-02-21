@@ -12,6 +12,7 @@ import clientRoutes from './client.routes'
 import whatsappRoutes from './whatsapp.routes'
 import engageLabRoutes from './engageLab.routes'
 import tasasRoutes from './tasas.routes'
+import uploadRoutes from './upload.routes'
 
 const router = Router()
 
@@ -28,6 +29,7 @@ router.use('/clients', clientRoutes)
 router.use('/whatsapp', whatsappRoutes)
 router.use('/engageLab', engageLabRoutes)
 router.use('/tasas', tasasRoutes)
+router.use('/upload', uploadRoutes)
 
 
 
