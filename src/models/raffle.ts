@@ -40,6 +40,12 @@ class Raffle extends Model {
     description: string
 
     @Column({
+        type: DataType.TEXT,
+        allowNull: true
+    })
+    loteria: string
+
+    @Column({
         type: DataType.DATE,
         allowNull: false
     })

@@ -10,6 +10,7 @@ import PayMethode from '../models/payMethode';
 import RaffleOffer from '../models/raffleOffers';
 import Clients from '../models/clients';
 import Purchase from '../models/purchase';
+import UserClients from '../models/user_clients';
 
 export function formatPostgresDateToReadable(dateString: string): string {
     const date = new Date(dateString);
@@ -144,18 +145,26 @@ class raffleNumbersControllers {
             filter.raffleId = req.raffle.id
 
             if (search) {
-                const searchConditions = [];
-                
-                // Si search es numérico, buscar por número
-                if (!isNaN(Number(search))) {
-                    searchConditions.push({ number: { [Op.eq]: +search } });
-                }
-                
-                // Siempre buscar por teléfono
-                searchConditions.push({ phone: { [Op.like]: `%${search}%` } });
-                searchConditions.push({ firstName: { [Op.like]: `%${search}%` } });
-                searchConditions.push({ lastName: { [Op.like]: `%${search}%` } });
-                filter[Op.or] = searchConditions;
+                const rawSearch = String(search).trim();
+                const searchTerms = rawSearch.split(/\s+/).filter(Boolean);
+                const andConditions = searchTerms.map((term) => {
+                    const orConditions: any[] = [];
+
+                    // Si el termino es numerico, buscar por numero
+                    if (!isNaN(Number(term))) {
+                        orConditions.push({ number: { [Op.eq]: +term } });
+                    }
+
+                    // Buscar por telefono, nombre y apellido
+                    orConditions.push({ phone: { [Op.like]: `%${term}%` } });
+                    orConditions.push({ firstName: { [Op.like]: `%${term}%` } });
+                    orConditions.push({ lastName: { [Op.like]: `%${term}%` } });
+
+                    return { [Op.or]: orConditions };
+                });
+
+                // Cada termino debe aparecer en alguno de los campos
+                filter[Op.and] = andConditions;
             }
 
             // Filtro por monto/deuda (paymentDue)
@@ -273,17 +282,26 @@ class raffleNumbersControllers {
             filter.raffleId = req.raffle.id
 
             if (search) {
-                const searchConditions = [];
-                
-                // Si search es numérico, buscar por número
-                if (!isNaN(Number(search))) {
-                    searchConditions.push({ number: { [Op.eq]: +search } });
-                }
-                
-                // Siempre buscar por identificationNumber
-                searchConditions.push({ identificationNumber: { [Op.eq]: search } });
-                
-                filter[Op.or] = searchConditions;
+                const rawSearch = String(search).trim();
+                const searchTerms = rawSearch.split(/\s+/).filter(Boolean);
+                const andConditions = searchTerms.map((term) => {
+                    const orConditions: any[] = [];
+
+                    // Si el termino es numerico, buscar por numero
+                    if (!isNaN(Number(term))) {
+                        orConditions.push({ number: { [Op.eq]: +term } });
+                    }
+
+                    // Buscar por telefono, nombre y apellido
+                    orConditions.push({ phone: { [Op.like]: `%${term}%` } });
+                    orConditions.push({ firstName: { [Op.like]: `%${term}%` } });
+                    orConditions.push({ lastName: { [Op.like]: `%${term}%` } });
+
+                    return { [Op.or]: orConditions };
+                });
+
+                // Cada termino debe aparecer en alguno de los campos
+                filter[Op.and] = andConditions;
             }
 
             // Filtro por monto/deuda (paymentDue)
@@ -958,6 +976,40 @@ class raffleNumbersControllers {
             // Crear todos los pagos en lote
             await Payment.bulkCreate(paymentsData);
 
+            // Buscar o crear el cliente y asociarlo al usuario
+            let cliente = await Clients.findOne({ where: { phone } });
+            
+            if (!cliente) {
+                cliente = await Clients.create({
+                    firstName,
+                    lastName,
+                    phone,
+                    address
+                });
+            } else {
+                // Actualizar datos del cliente si ya existe
+                await cliente.update({
+                    firstName,
+                    lastName,
+                    address
+                });
+            }
+
+            // Verificar si existe la asociación en UserClients, si no, crearla
+            const userClientExists = await UserClients.findOne({
+                where: {
+                    userId: req.user.id,
+                    clientId: cliente.id
+                }
+            });
+
+            if (!userClientExists) {
+                await UserClients.create({
+                    userId: req.user.id,
+                    clientId: cliente.id
+                });
+            }
+
             // Actualizar todos los números en lote según el modo
             if (!separar) {
                 // Modo compra - marcar como vendidos
@@ -970,7 +1022,8 @@ class raffleNumbersControllers {
                         firstName,
                         lastName,
                         phone,
-                        address
+                        address,
+                        clienteId: cliente.id
                     },
                     {
                         where: {
@@ -989,7 +1042,8 @@ class raffleNumbersControllers {
                         firstName,
                         lastName,
                         phone,
-                        address
+                        address,
+                        clienteId: cliente.id
                     },
                     {
                         where: {
@@ -1280,6 +1334,40 @@ class raffleNumbersControllers {
 
             if ((raffleNumbersStatus === 'available') || (raffleNumbersStatus === 'apartado')) {
 
+                // Buscar o crear el cliente y asociarlo al usuario
+                let cliente = await Clients.findOne({ where: { phone } });
+                
+                if (!cliente) {
+                    cliente = await Clients.create({
+                        firstName,
+                        lastName,
+                        phone,
+                        address
+                    });
+                } else {
+                    // Actualizar datos del cliente si ya existe
+                    await cliente.update({
+                        firstName,
+                        lastName,
+                        address
+                    });
+                }
+
+                // Verificar si existe la asociación en UserClients, si no, crearla
+                const userClientExists = await UserClients.findOne({
+                    where: {
+                        userId: req.user.id,
+                        clientId: cliente.id
+                    }
+                });
+
+                if (!userClientExists) {
+                    await UserClients.create({
+                        userId: req.user.id,
+                        clientId: cliente.id
+                    });
+                }
+
                 const amountZero = amount === 0 
                 const amountCompleto = amount === currentPaymentDue
                 // const currentPaymentAmount = +req.raffleNumber.dataValues.paymentAmount
@@ -1303,7 +1391,8 @@ class raffleNumbersControllers {
                         firstName,
                         lastName,
                         phone,
-                        address
+                        address,
+                        clienteId: cliente.id
                     })
                 } else if (!amountCompleto && !descuento) { // Abono
                     const payment = await Payment.create({
@@ -1323,7 +1412,8 @@ class raffleNumbersControllers {
                         firstName,
                         lastName,
                         phone,
-                        address
+                        address,
+                        clienteId: cliente.id
                     })
                 } else if (descuento) {
                     const payment = await Payment.create({
@@ -1343,7 +1433,8 @@ class raffleNumbersControllers {
                         firstName,
                         lastName,
                         phone,
-                        address
+                        address,
+                        clienteId: cliente.id
                     })
                 }
                 

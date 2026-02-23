@@ -1224,6 +1224,16 @@ class clientsController {
         }
     }
 
+    static async deleteClient ( req: Request, res: Response ){
+        try {
+            await req.client.destroy();
+            res.status(200).send('Cliente eliminado correctamente');
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({error: 'Hubo un Error'})     
+        }
+    }
+
 }
 
 export default clientsController

@@ -65,4 +65,12 @@ router.put('/:clientId',
     clientsController.updateClient
 )
 
+router.delete('/:clientId',
+    authenticate,
+    checkRole(['admin', 'responsable', 'vendedor']),
+    validateIdParam('clientId'),
+    clientExists,
+    clientsController.deleteClient
+)
+
 export default router
