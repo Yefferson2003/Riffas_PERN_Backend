@@ -97,7 +97,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, apartado, pending, page = 1, limit = 100, paymentMethod, startDate, endDate, userId} = req.query
+        const {search, amount, available, sold, apartado, pending, pending1, pending2, page = 1, limit = 100, paymentMethod, startDate, endDate, userId} = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -124,21 +124,29 @@ class raffleNumbersControllers {
                 }
             }
 
-            if (available && !sold && !pending) {
+            if (available && !sold && !pending && !pending1 && !pending2) {
                 filter.status = 'available'
             }
-            if (!available && sold && !pending) {
+            if (!available && sold && !pending && !pending1 && !pending2) {
                 filter.status = 'sold'
             }
-            if (!available && !sold && pending) {
+            if (!available && !sold && pending && !pending1 && !pending2) {
                 filter.status = 'pending'
+            }
+            if (!available && !sold && !pending && pending1 && !pending2) {
+                filter.status = 'pending'
+                filter.paymentAmount = { [Op.lte]: 0 }
+            }
+            if (!available && !sold && !pending && !pending1 && pending2) {
+                filter.status = 'pending'
+                filter.paymentAmount = { [Op.gt]: 0 }
             }
             if (!available && !sold && !pending && apartado) {
                 filter.status = 'apartado'
             }
 
             // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
-            if (paymentMethod && !available && !sold && !pending) {
+            if (paymentMethod && !available && !sold && !pending && !pending1 && !pending2) {
                 filter.status = { [Op.ne]: 'available' };
             }
 
@@ -218,7 +226,7 @@ class raffleNumbersControllers {
 
             const {count, rows :  raffleNumbers } = await RaffleNumbers.findAndCountAll({
                 where: filter,
-                attributes: ['id', 'number', 'status', 'firstName',  'lastName'],
+                attributes: ['id', 'number', 'status', 'paymentAmount', 'firstName',  'lastName'],
                 include: [paymentInclude],
                 limit: limitNumber,
                 offset,
@@ -239,21 +247,29 @@ class raffleNumbersControllers {
     }
     
     static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, paymentMethod, apartado,  startDate, endDate, userId} = req.query
+        const {search, amount, available, sold, pending, pending1, pending2, paymentMethod, apartado,  startDate, endDate, userId} = req.query
         // console.log('exelfiilter', paymentMethod);
         
         try {
 
             const filter : any = {}
 
-            if (available && !sold && !pending) {
+            if (available && !sold && !pending && !pending1 && !pending2) {
                 filter.status = 'available'
             }
-            if (!available && sold && !pending) {
+            if (!available && sold && !pending && !pending1 && !pending2) {
                 filter.status = 'sold'
             }
-            if (!available && !sold && pending) {
+            if (!available && !sold && pending && !pending1 && !pending2) {
                 filter.status = 'pending'
+            }
+            if (!available && !sold && !pending && pending1 && !pending2) {
+                filter.status = 'pending'
+                filter.paymentAmount = { [Op.lte]: 0 }
+            }
+            if (!available && !sold && !pending && !pending1 && pending2) {
+                filter.status = 'pending'
+                filter.paymentAmount = { [Op.gt]: 0 }
             }
             if (!available && !sold && !pending && apartado) {
                 filter.status = 'apartado'
@@ -275,7 +291,7 @@ class raffleNumbersControllers {
             }
 
             // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
-            if (rafflePayMethodeExits && !available && !sold && !pending) {
+            if (rafflePayMethodeExits && !available && !sold && !pending && !pending1 && !pending2) {
                 filter.status = { [Op.ne]: 'available' };
             }
 
