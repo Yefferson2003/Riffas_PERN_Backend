@@ -184,7 +184,7 @@ class clientsController {
                             {
                                 model: Raffle,
                                 as: 'raffle',
-                                attributes: ['id', 'name', 'playDate', 'price', 'color']
+                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
                             }
                         ],
                         order: [['reservedDate', 'DESC']]
@@ -291,9 +291,12 @@ class clientsController {
     // Ruta para exportar todos los clientes y sus datos completos (sin paginación)
     static async getAllClientsForExport(req: Request, res: Response) {
 
-        const { search, order = 1, startDate, endDate } = req.query;
+        const { search, order = 1, startDate, endDate, raffleId, semaforo } = req.query;
         const orderValue = parseInt(order as string) || 1;
         const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
+        const raffleIdNumber = Number(raffleId);
+        const hasRaffleFilter = Number.isInteger(raffleIdNumber) && raffleIdNumber > 0;
+        const hasSemaforoFilter = typeof semaforo === 'string' && ['blue', 'green', 'orange', 'red'].includes(semaforo);
 
         try {
             let clientsWhere: any = {};
@@ -464,6 +467,69 @@ class clientsController {
                 };
             }
 
+            // Pre-filtro por rifa: solo clientes con números en esa rifa
+            if (hasRaffleFilter) {
+                const raffleClientRows = await RaffleNumbers.findAll({
+                    where: { raffleId: raffleIdNumber, clienteId: { [Op.not]: null } },
+                    attributes: [['clienteId', 'clientId']],
+                    raw: true,
+                    group: ['clienteId']
+                });
+                const raffleClientIds = raffleClientRows.map((rn: any) => rn.clientId).filter(Boolean);
+                if (raffleClientIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
+                }
+                if (clientsWhere.id) {
+                    const existingIds: number[] = clientsWhere.id[Op.in];
+                    const intersected = existingIds.filter((id: number) => raffleClientIds.includes(id));
+                    if (intersected.length === 0) {
+                        res.json({ clients: [] });
+                        return;
+                    }
+                    clientsWhere.id = { [Op.in]: intersected };
+                } else {
+                    clientsWhere.id = { [Op.in]: raffleClientIds };
+                }
+            }
+
+            // Pre-filtro por semáforo: solo clientes con el % de vendidos correspondiente
+            if (hasSemaforoFilter) {
+                const pct = "SUM(CASE WHEN status = 'sold' THEN 1.0 ELSE 0 END) * 100.0 / NULLIF(COUNT(id), 0)";
+                let havingClause: string;
+                if (semaforo === 'blue')        havingClause = `${pct} > 75`;
+                else if (semaforo === 'green')  havingClause = `${pct} > 50 AND ${pct} <= 75`;
+                else if (semaforo === 'orange') havingClause = `${pct} > 25 AND ${pct} <= 50`;
+                else                            havingClause = `${pct} <= 25`;
+
+                const semaforoRows = await RaffleNumbers.findAll({
+                    where: {
+                        clienteId: { [Op.not]: null },
+                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                    },
+                    attributes: [['clienteId', 'clientId']],
+                    having: Sequelize.literal(havingClause),
+                    group: ['clienteId'],
+                    raw: true
+                });
+                const semaforoClientIds = semaforoRows.map((rn: any) => rn.clientId).filter(Boolean);
+                if (semaforoClientIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
+                }
+                if (clientsWhere.id) {
+                    const existingIds: number[] = clientsWhere.id[Op.in];
+                    const intersected = existingIds.filter((id: number) => semaforoClientIds.includes(id));
+                    if (intersected.length === 0) {
+                        res.json({ clients: [] });
+                        return;
+                    }
+                    clientsWhere.id = { [Op.in]: intersected };
+                } else {
+                    clientsWhere.id = { [Op.in]: semaforoClientIds };
+                }
+            }
+
             const clients = await Clients.findAll({
                 where: clientsWhere,
                 order: orderClause,
@@ -471,6 +537,8 @@ class clientsController {
                     {
                         model: RaffleNumbers,
                         as: 'raffleNumbers',
+                        ...(hasRaffleFilter ? { required: true } : {}),
+                        ...(hasRaffleFilter ? { where: { raffleId: raffleIdNumber } } : {}),
                         attributes: [
                             'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
                         ],
@@ -478,7 +546,7 @@ class clientsController {
                             {
                                 model: Raffle,
                                 as: 'raffle',
-                                attributes: ['id', 'name', 'playDate', 'price', 'color']
+                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
                             },
                             {
                                 model: Payment,
@@ -729,13 +797,16 @@ class clientsController {
     }
 
     static async getClientsAll( req: Request, res: Response ){
-        const {page = 1, limit = 15, search, order = 1, startDate, endDate } = req.query
+        const {page = 1, limit = 15, search, order = 1, startDate, endDate, raffleId, semaforo } = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
         const offset = (pageNumber - 1) * limitNumber;
         const orderValue = parseInt(order as string) || 1;
         const orderClause = clientOrderMap[orderValue] || clientOrderMap[1];
+        const raffleIdNumber = Number(raffleId);
+        const hasRaffleFilter = Number.isInteger(raffleIdNumber) && raffleIdNumber > 0;
+        const hasSemaforoFilter = typeof semaforo === 'string' && ['blue', 'green', 'orange', 'red'].includes(semaforo);
 
         try {
             let clientsWhere : any = {}
@@ -922,6 +993,69 @@ class clientsController {
                 };
             }
 
+            // Pre-filtro por rifa: solo clientes con números en esa rifa
+            if (hasRaffleFilter) {
+                const raffleClientRows = await RaffleNumbers.findAll({
+                    where: { raffleId: raffleIdNumber, clienteId: { [Op.not]: null } },
+                    attributes: [['clienteId', 'clientId']],
+                    raw: true,
+                    group: ['clienteId']
+                });
+                const raffleClientIds = raffleClientRows.map((rn: any) => rn.clientId).filter(Boolean);
+                if (raffleClientIds.length === 0) {
+                    res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                    return;
+                }
+                if (clientsWhere.id) {
+                    const existingIds: number[] = clientsWhere.id[Op.in];
+                    const intersected = existingIds.filter((id: number) => raffleClientIds.includes(id));
+                    if (intersected.length === 0) {
+                        res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                        return;
+                    }
+                    clientsWhere.id = { [Op.in]: intersected };
+                } else {
+                    clientsWhere.id = { [Op.in]: raffleClientIds };
+                }
+            }
+
+            // Pre-filtro por semáforo: solo clientes con el % de vendidos correspondiente
+            if (hasSemaforoFilter) {
+                const pct = "SUM(CASE WHEN status = 'sold' THEN 1.0 ELSE 0 END) * 100.0 / NULLIF(COUNT(id), 0)";
+                let havingClause: string;
+                if (semaforo === 'blue')        havingClause = `${pct} > 75`;
+                else if (semaforo === 'green')  havingClause = `${pct} > 50 AND ${pct} <= 75`;
+                else if (semaforo === 'orange') havingClause = `${pct} > 25 AND ${pct} <= 50`;
+                else                            havingClause = `${pct} <= 25`;
+
+                const semaforoRows = await RaffleNumbers.findAll({
+                    where: {
+                        clienteId: { [Op.not]: null },
+                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                    },
+                    attributes: [['clienteId', 'clientId']],
+                    having: Sequelize.literal(havingClause),
+                    group: ['clienteId'],
+                    raw: true
+                });
+                const semaforoClientIds = semaforoRows.map((rn: any) => rn.clientId).filter(Boolean);
+                if (semaforoClientIds.length === 0) {
+                    res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                    return;
+                }
+                if (clientsWhere.id) {
+                    const existingIds: number[] = clientsWhere.id[Op.in];
+                    const intersected = existingIds.filter((id: number) => semaforoClientIds.includes(id));
+                    if (intersected.length === 0) {
+                        res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                        return;
+                    }
+                    clientsWhere.id = { [Op.in]: intersected };
+                } else {
+                    clientsWhere.id = { [Op.in]: semaforoClientIds };
+                }
+            }
+
             // Consulta principal
             const {rows: clients, count} = await Clients.findAndCountAll({
                 distinct: true,
@@ -933,6 +1067,8 @@ class clientsController {
                     {
                         model: RaffleNumbers,
                         as: 'raffleNumbers',
+                        ...(hasRaffleFilter ? { required: true } : {}),
+                        ...(hasRaffleFilter ? { where: { raffleId: raffleIdNumber } } : {}),
                         attributes: [
                             'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
                         ],
@@ -940,7 +1076,7 @@ class clientsController {
                             {
                                 model: Raffle,
                                 as: 'raffle',
-                                attributes: ['id', 'name', 'playDate', 'price', 'color']
+                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
                             },
                             {
                                 model: Payment,
@@ -989,6 +1125,70 @@ class clientsController {
                     });
                 }
             });
+
+            // Calcular estatus semáforo por cliente según porcentaje de números vendidos
+            const clientIdsForStatus = clients.map((client) => client.dataValues.id).filter(Boolean);
+
+            if (clientIdsForStatus.length > 0) {
+                const clientsPaymentStats = await RaffleNumbers.findAll({
+                    where: {
+                        clienteId: { [Op.in]: clientIdsForStatus }
+                    },
+                    attributes: [
+                        'clienteId',
+                        [RaffleNumbers.sequelize.fn('COUNT', RaffleNumbers.sequelize.col('id')), 'totalNumbers'],
+                        [
+                            RaffleNumbers.sequelize.fn(
+                                'SUM',
+                                RaffleNumbers.sequelize.literal(`CASE WHEN status = 'sold' THEN 1 ELSE 0 END`)
+                            ),
+                            'soldNumbers'
+                        ]
+                    ],
+                    group: ['clienteId'],
+                    raw: true
+                });
+
+                const statsByClientId: Record<number, { totalNumbers: number; soldNumbers: number; soldPercentage: number; semaforo: string }> = {};
+
+                clientsPaymentStats.forEach((row: any) => {
+                    const clientId = Number(row.clienteId);
+                    const totalNumbers = Number(row.totalNumbers) || 0;
+                    const soldNumbers = Number(row.soldNumbers) || 0;
+                    const soldPercentage = totalNumbers > 0
+                        ? Number(((soldNumbers / totalNumbers) * 100).toFixed(2))
+                        : 0;
+
+                    let semaforo = 'red';
+
+                    if (soldPercentage > 75) {
+                        semaforo = 'blue';
+                    } else if (soldPercentage > 50) {
+                        semaforo = 'green';
+                    } else if (soldPercentage > 25) {
+                        semaforo = 'orange';
+                    }
+
+                    statsByClientId[clientId] = {
+                        totalNumbers,
+                        soldNumbers,
+                        soldPercentage,
+                        semaforo
+                    };
+                });
+
+                clients.forEach((client) => {
+                    const clientId = Number(client.dataValues.id);
+                    const status = statsByClientId[clientId] || {
+                        totalNumbers: 0,
+                        soldNumbers: 0,
+                        soldPercentage: 0,
+                        semaforo: 'red'
+                    };
+
+                    client.dataValues.status = status;
+                });
+            }
 
             res.json({ 
                 total: count,

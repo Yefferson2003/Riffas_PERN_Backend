@@ -11,6 +11,7 @@ import RaffleOffer from '../models/raffleOffers';
 import Clients from '../models/clients';
 import Purchase from '../models/purchase';
 import UserClients from '../models/user_clients';
+import Raffle from '../models/raffle';
 
 export function formatPostgresDateToReadable(dateString: string): string {
     const date = new Date(dateString);
@@ -1985,6 +1986,44 @@ class raffleNumbersControllers {
     //         res.status(500).json({error: 'Hubo un Error'})
     //     }
     // }
+
+    static getWhatsappAvisoData = async (req: Request, res: Response) => {
+        try {
+            const raffleNumber = req.raffleNumber;
+
+            // Validar que el número tenga cliente asignado
+            if (!raffleNumber.dataValues.phone || !raffleNumber.dataValues.firstName) {
+                res.status(422).json({ error: 'El número no tiene cliente asignado' });
+                return;
+            }
+
+            // Obtener nombre de la rifa y total de números en paralelo
+            const [raffle, totalNumbers] = await Promise.all([
+                Raffle.findByPk(raffleNumber.dataValues.raffleId, {
+                    attributes: ['id', 'name']
+                }),
+                RaffleNumbers.count({
+                    where: { raffleId: raffleNumber.dataValues.raffleId }
+                })
+            ]);
+
+            if (!raffle) {
+                res.status(404).json({ error: 'Rifa no encontrada' });
+                return;
+            }
+
+            res.json({
+                totalNumbers,
+                number: raffleNumber.dataValues.number,
+                telefono: raffleNumber.dataValues.phone,
+                name: `${raffleNumber.dataValues.firstName ?? ''} ${raffleNumber.dataValues.lastName ?? ''}`.trim(),
+                raffleName: raffle.dataValues.name
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Hubo un Error' });
+        }
+    }
 }
 
 export default raffleNumbersControllers

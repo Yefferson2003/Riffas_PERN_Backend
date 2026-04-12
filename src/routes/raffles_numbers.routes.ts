@@ -68,6 +68,15 @@ router.get('/:raffleId/number/:raffleNumberId',
     raffleNumbersControllers.getRaffleNumberById
 )
 
+router.get('/:raffleId/number/:raffleNumberId/whatsapp-aviso',
+    authenticate,
+    validateIdParam('raffleId'),
+    validateIdParam('raffleNumberId'),
+    raffleExists,
+    raffleNumberExists,
+    raffleNumbersControllers.getWhatsappAvisoData
+)
+
 router.post('/:raffleId/sell-numbers',
     authenticate,
     checkRole(['vendedor', 'responsable']),

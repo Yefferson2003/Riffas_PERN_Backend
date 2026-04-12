@@ -4,20 +4,8 @@ import http from "http";
 import { Server } from "socket.io";
 import { corsConfig } from "./config/cors";
 
-import connectDB from "./config/db";
 import router from "./routes/index.routes";
 import webhookRoutes from "./routes/indexWebhooks.routes";
-import { inicializateData } from "./config/inicializateData";
-
-
-connectDB();
-
-// Inicializar datos base (roles y usuarios)
-inicializateData().then(() => {
-    console.log("Datos iniciales cargados");
-}).catch((err) => {
-    console.error("Error al inicializar datos:", err);
-});
 
 const app = express();
 const server = http.createServer(app);

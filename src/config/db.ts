@@ -16,6 +16,7 @@ async function connectDB() {
     } catch (error) {
         console.log(error);
         console.log('Hubo un error en la conexión de la DB');
+        throw error;
     }
 }
 
