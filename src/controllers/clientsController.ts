@@ -538,7 +538,6 @@ class clientsController {
                         model: RaffleNumbers,
                         as: 'raffleNumbers',
                         separate: true,
-                        ...(hasRaffleFilter ? { required: true } : {}),
                         ...(hasRaffleFilter ? { where: { raffleId: raffleIdNumber } } : {}),
                         attributes: [
                             'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
@@ -1069,7 +1068,6 @@ class clientsController {
                         model: RaffleNumbers,
                         as: 'raffleNumbers',
                         separate: true,
-                        ...(hasRaffleFilter ? { required: true } : {}),
                         ...(hasRaffleFilter ? { where: { raffleId: raffleIdNumber } } : {}),
                         attributes: [
                             'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
