@@ -121,12 +121,9 @@ class clientsController {
                 : '';
 
 
-            const { rows: clients, count } = await Clients.findAndCountAll({
-                distinct: true,
-                subQuery: false,
-                where: {
-                    ...clientsWhere,
-                    [Op.and]: Sequelize.literal(`
+            const whereWithExists = {
+                ...clientsWhere,
+                [Op.and]: Sequelize.literal(`
                     EXISTS (
                         SELECT 1
                         FROM "raffle_numbers" rn
@@ -139,14 +136,23 @@ class clientsController {
                             : ''}
                     )
                 `)
-                },
+            };
+
+            const count = await Clients.count({
+                where: whereWithExists,
+                distinct: true,
+                col: 'id'
+            });
+
+            const clients = await Clients.findAll({
+                subQuery: false,
+                where: whereWithExists,
                 limit: limitNumber,
                 offset,
                 include: [
                     {
                         model: RaffleNumbers,
                         as: 'raffleNumbers',
-                        required: true,
                         limit: 50,
                         separate: true,
                         where: {
@@ -1057,8 +1063,13 @@ class clientsController {
             }
 
             // Consulta principal
-            const {rows: clients, count} = await Clients.findAndCountAll({
+            const count = await Clients.count({
+                where: clientsWhere,
                 distinct: true,
+                col: 'id'
+            });
+
+            const clients = await Clients.findAll({
                 where: clientsWhere,
                 limit: limitNumber,
                 offset: offset,
