@@ -539,32 +539,57 @@ class clientsController {
             const clients = await Clients.findAll({
                 where: clientsWhere,
                 order: orderClause,
-                include: [
-                    {
-                        model: RaffleNumbers,
-                        as: 'raffleNumbers',
-                        separate: true,
-                        ...(hasRaffleFilter ? { where: { raffleId: raffleIdNumber } } : {}),
-                        attributes: [
-                            'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
-                        ],
-                        include: [
-                            {
-                                model: Raffle,
-                                as: 'raffle',
-                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
-                            },
-                            {
-                                model: Payment,
-                                as: 'payments',
-                                attributes: ['id', 'amount', 'createdAt', 'paymentMethodId']
-                            }
-                        ],
-                        limit: 50,
-                        order: [['reservedDate', 'DESC']]
-                    }
-                ]
             });
+
+            const exportClientIds = clients
+                .map((client) => Number(client.dataValues.id))
+                .filter((id) => Number.isInteger(id) && id > 0);
+
+            if (exportClientIds.length > 0) {
+                const raffleNumbers = await RaffleNumbers.findAll({
+                    where: {
+                        clienteId: { [Op.in]: exportClientIds },
+                        status: { [Op.not]: 'available' },
+                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                    },
+                    attributes: [
+                        'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
+                    ],
+                    include: [
+                        {
+                            model: Raffle,
+                            as: 'raffle',
+                            attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
+                        },
+                        {
+                            model: Payment,
+                            as: 'payments',
+                            attributes: ['id', 'amount', 'createdAt', 'paymentMethodId']
+                        }
+                    ],
+                    order: [['reservedDate', 'DESC']]
+                });
+
+                const raffleNumbersByClient: Record<number, any[]> = {};
+                raffleNumbers.forEach((rn) => {
+                    const clientId = Number(rn.dataValues.clienteId);
+                    if (!Number.isInteger(clientId) || clientId <= 0) return;
+                    if (!raffleNumbersByClient[clientId]) {
+                        raffleNumbersByClient[clientId] = [];
+                    }
+                    raffleNumbersByClient[clientId].push(rn);
+                });
+
+                clients.forEach((client) => {
+                    const clientId = Number(client.dataValues.id);
+                    const numbers = raffleNumbersByClient[clientId] || [];
+                    client.setDataValue('raffleNumbers', numbers.slice(0, 50));
+                });
+            } else {
+                clients.forEach((client) => {
+                    client.setDataValue('raffleNumbers', []);
+                });
+            }
 
             // Obtener el total de números por rifa
             const raffleIds = [];
@@ -600,7 +625,53 @@ class clientsController {
                 }
             });
 
-            res.json({ clients });
+            const clientsPayload = clients.map((client) => {
+                const raffleNumbers = (client.dataValues.raffleNumbers || []).map((num: any) => ({
+                    id: num?.dataValues?.id ?? num?.id,
+                    number: num?.dataValues?.number ?? num?.number,
+                    reservedDate: num?.dataValues?.reservedDate ?? num?.reservedDate,
+                    paymentAmount: num?.dataValues?.paymentAmount ?? num?.paymentAmount,
+                    paymentDue: num?.dataValues?.paymentDue ?? num?.paymentDue,
+                    status: num?.dataValues?.status ?? num?.status,
+                    clienteId: num?.dataValues?.clienteId ?? num?.clienteId,
+                    raffleId: num?.dataValues?.raffleId ?? num?.raffleId,
+                    raffle: (() => {
+                        const raffle = num?.dataValues?.raffle ?? num?.raffle;
+                        if (!raffle) return undefined;
+                        const raffleData = raffle?.dataValues ?? raffle;
+                        return {
+                            id: raffleData.id,
+                            name: raffleData.name,
+                            playDate: raffleData.playDate,
+                            price: raffleData.price,
+                            color: raffleData.color,
+                            description: raffleData.description,
+                            nameResponsable: raffleData.nameResponsable,
+                            totalNumbers: raffleData.totalNumbers,
+                        };
+                    })(),
+                    payments: ((num?.dataValues?.payments ?? num?.payments) || []).map((payment: any) => {
+                        const p = payment?.dataValues ?? payment;
+                        return {
+                            id: p.id,
+                            amount: p.amount,
+                            createdAt: p.createdAt,
+                            paymentMethodId: p.paymentMethodId,
+                        };
+                    })
+                }));
+
+                return {
+                    id: client.dataValues.id,
+                    firstName: client.dataValues.firstName,
+                    lastName: client.dataValues.lastName,
+                    phone: client.dataValues.phone,
+                    address: client.dataValues.address,
+                    raffleNumbers,
+                };
+            });
+
+            res.json({ clients: clientsPayload });
         } catch (error) {
             console.log(error);
             res.status(500).json({ error: 'Hubo un Error al exportar los clientes' });
@@ -1073,33 +1144,58 @@ class clientsController {
                 where: clientsWhere,
                 limit: limitNumber,
                 offset: offset,
-                order: orderClause,
-                include: [
-                    {
-                        model: RaffleNumbers,
-                        as: 'raffleNumbers',
-                        separate: true,
-                        ...(hasRaffleFilter ? { where: { raffleId: raffleIdNumber } } : {}),
-                        attributes: [
-                            'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
-                        ],
-                        include: [
-                            {
-                                model: Raffle,
-                                as: 'raffle',
-                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
-                            },
-                            {
-                                model: Payment,
-                                as: 'payments',
-                                attributes: ['id', 'amount', 'createdAt', 'paymentMethodId']
-                            }
-                        ],
-                        limit: 50,
-                        order: [['reservedDate', 'DESC']]
-                    }
-                ]
+                order: orderClause
             });
+
+            const pageClientIds = clients
+                .map((client) => Number(client.dataValues.id))
+                .filter((id) => Number.isInteger(id) && id > 0);
+
+            if (pageClientIds.length > 0) {
+                const raffleNumbers = await RaffleNumbers.findAll({
+                    where: {
+                        clienteId: { [Op.in]: pageClientIds },
+                        status: { [Op.not]: 'available' },
+                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                    },
+                    attributes: [
+                        'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
+                    ],
+                    include: [
+                        {
+                            model: Raffle,
+                            as: 'raffle',
+                            attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
+                        },
+                        {
+                            model: Payment,
+                            as: 'payments',
+                            attributes: ['id', 'amount', 'createdAt', 'paymentMethodId']
+                        }
+                    ],
+                    order: [['reservedDate', 'DESC']]
+                });
+
+                const raffleNumbersByClient: Record<number, any[]> = {};
+                raffleNumbers.forEach((rn) => {
+                    const clientId = Number(rn.dataValues.clienteId);
+                    if (!Number.isInteger(clientId) || clientId <= 0) return;
+                    if (!raffleNumbersByClient[clientId]) {
+                        raffleNumbersByClient[clientId] = [];
+                    }
+                    raffleNumbersByClient[clientId].push(rn);
+                });
+
+                clients.forEach((client) => {
+                    const clientId = Number(client.dataValues.id);
+                    const numbers = raffleNumbersByClient[clientId] || [];
+                    client.setDataValue('raffleNumbers', numbers.slice(0, 50));
+                });
+            } else {
+                clients.forEach((client) => {
+                    client.setDataValue('raffleNumbers', []);
+                });
+            }
 
             // Obtener el total de números por rifa
             const raffleIds = [];
@@ -1201,9 +1297,56 @@ class clientsController {
                 });
             }
 
+            const clientsPayload = clients.map((client) => {
+                const raffleNumbers = (client.dataValues.raffleNumbers || []).map((num: any) => ({
+                    id: num?.dataValues?.id ?? num?.id,
+                    number: num?.dataValues?.number ?? num?.number,
+                    reservedDate: num?.dataValues?.reservedDate ?? num?.reservedDate,
+                    paymentAmount: num?.dataValues?.paymentAmount ?? num?.paymentAmount,
+                    paymentDue: num?.dataValues?.paymentDue ?? num?.paymentDue,
+                    status: num?.dataValues?.status ?? num?.status,
+                    clienteId: num?.dataValues?.clienteId ?? num?.clienteId,
+                    raffleId: num?.dataValues?.raffleId ?? num?.raffleId,
+                    raffle: (() => {
+                        const raffle = num?.dataValues?.raffle ?? num?.raffle;
+                        if (!raffle) return undefined;
+                        const raffleData = raffle?.dataValues ?? raffle;
+                        return {
+                            id: raffleData.id,
+                            name: raffleData.name,
+                            playDate: raffleData.playDate,
+                            price: raffleData.price,
+                            color: raffleData.color,
+                            description: raffleData.description,
+                            nameResponsable: raffleData.nameResponsable,
+                            totalNumbers: raffleData.totalNumbers,
+                        };
+                    })(),
+                    payments: ((num?.dataValues?.payments ?? num?.payments) || []).map((payment: any) => {
+                        const p = payment?.dataValues ?? payment;
+                        return {
+                            id: p.id,
+                            amount: p.amount,
+                            createdAt: p.createdAt,
+                            paymentMethodId: p.paymentMethodId,
+                        };
+                    })
+                }));
+
+                return {
+                    id: client.dataValues.id,
+                    firstName: client.dataValues.firstName,
+                    lastName: client.dataValues.lastName,
+                    phone: client.dataValues.phone,
+                    address: client.dataValues.address,
+                    status: client.dataValues.status,
+                    raffleNumbers,
+                };
+            });
+
             res.json({ 
                 total: count,
-                clients,
+                clients: clientsPayload,
                 totalPages: Math.ceil(count / limitNumber),
                 currentPage: pageNumber,
             })
