@@ -996,12 +996,12 @@ class clientsController {
             // Pre-filtro por rifa: solo clientes con números en esa rifa
             if (hasRaffleFilter) {
                 const raffleClientRows = await RaffleNumbers.findAll({
-                    where: { raffleId: raffleIdNumber, clienteId: { [Op.not]: null } },
-                    attributes: [['clienteId', 'clientId']],
+                    where: { raffleId: raffleIdNumber, status: { [Op.not]: 'available' } },
+                    attributes: ['clienteId'],
                     raw: true,
                     group: ['clienteId']
                 });
-                const raffleClientIds = raffleClientRows.map((rn: any) => rn.clientId).filter(Boolean);
+                const raffleClientIds = raffleClientRows.map((rn: any) => rn.clienteId).filter(Boolean);
                 if (raffleClientIds.length === 0) {
                     res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
                     return;
@@ -1199,7 +1199,7 @@ class clientsController {
 
         } catch (error) {
             console.log(error);
-            res.status(500).json({error: 'Hubo un Error'})
+            res.status(500).json({error: 'Hubo un en la obtencion de los clientes'})
         }
     }
 
