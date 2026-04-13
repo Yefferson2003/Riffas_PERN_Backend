@@ -98,7 +98,7 @@ class raffleNumbersControllers {
     }
 
     static getRaffleNumbers = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, apartado, pending, pending1, pending2, page = 1, limit = 100, paymentMethod, startDate, endDate, userId} = req.query
+        const {search, amount, available, sold, apartado, pending, pending1, pending2, page = 1, limit = 100, paymentMethod, startDate, endDate, userId, resumen1, resumen2,resumen3, resumen4 } = req.query
 
         const pageNumber = parseInt(page as string);
         const limitNumber = parseInt(limit as string);
@@ -107,6 +107,7 @@ class raffleNumbersControllers {
         try {
 
             const filter : any = {}
+            const isResumenFilter = Boolean(resumen1 || resumen2 || resumen3 || resumen4)
 
             let rafflePayMethodeExits = null;
 
@@ -144,6 +145,18 @@ class raffleNumbersControllers {
             }
             if (!available && !sold && !pending && apartado) {
                 filter.status = 'apartado'
+            }
+
+            if (isResumenFilter) {
+                // El resumen no debe heredar filtros de estado/monto previos.
+                delete filter.status;
+                delete filter.paymentAmount;
+
+                // Resumen: solo números con dinero (abonados o pagados)
+                filter[Op.or] = [
+                    { status: 'sold' },
+                    { status: 'pending', paymentAmount: { [Op.gt]: 0 } }
+                ]
             }
 
             // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
@@ -192,6 +205,29 @@ class raffleNumbersControllers {
 
             // Configurar filtros para payments
             const paymentWhere: any = {};
+
+            if (isResumenFilter) {
+                paymentWhere.isValid = true;
+
+                const now = new Date();
+                let fromDate: Date | null = null;
+
+                if (resumen1) {
+                    fromDate = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+                }
+                if (resumen2) {
+                    fromDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+                }
+                if (resumen3) {
+                    fromDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+                }
+
+                if (fromDate) {
+                    paymentWhere.createdAt = {
+                        [Op.between]: [fromDate, now]
+                    };
+                }
+            }
 
             // Si se especifica paymentMethod, filtrar por método de pago
             if (paymentMethod && rafflePayMethodeExits) {
@@ -248,12 +284,13 @@ class raffleNumbersControllers {
     }
     
     static getRaffleNumbersForExelFilter = async (req: Request, res: Response) => {
-        const {search, amount, available, sold, pending, pending1, pending2, paymentMethod, apartado,  startDate, endDate, userId} = req.query
+        const {search, amount, available, sold, pending, pending1, pending2, paymentMethod, apartado,  startDate, endDate, userId, resumen1, resumen2, resumen3, resumen4} = req.query
         // console.log('exelfiilter', paymentMethod);
         
         try {
 
             const filter : any = {}
+            const isResumenFilter = Boolean(resumen1 || resumen2 || resumen3 || resumen4)
 
             if (available && !sold && !pending && !pending1 && !pending2) {
                 filter.status = 'available'
@@ -276,6 +313,14 @@ class raffleNumbersControllers {
                 filter.status = 'apartado'
             }
 
+            if (isResumenFilter) {
+                // Resumen: solo números con dinero (abonados o pagados)
+                filter[Op.or] = [
+                    { status: 'sold' },
+                    { status: 'pending', paymentAmount: { [Op.gt]: 0 } }
+                ]
+            }
+
             let rafflePayMethodeExits = null;
             if (paymentMethod) {
                 rafflePayMethodeExits = await RafflePayMethode.findOne({
@@ -292,7 +337,7 @@ class raffleNumbersControllers {
             }
 
             // Si existe paymentMethod y no hay otros filtros de estado, excluir disponibles
-            if (rafflePayMethodeExits && !available && !sold && !pending && !pending1 && !pending2) {
+            if (rafflePayMethodeExits && !available && !sold && !pending && !pending1 && !pending2 && !isResumenFilter) {
                 filter.status = { [Op.ne]: 'available' };
             }
 
@@ -322,7 +367,7 @@ class raffleNumbersControllers {
             }
 
             // Filtro por monto/deuda (paymentDue)
-            if (amount && !isNaN(Number(amount))) {
+            if (!isResumenFilter && amount && !isNaN(Number(amount))) {
                 filter.paymentAmount = { [Op.lte]: Number(amount) };
             }
 
@@ -333,6 +378,29 @@ class raffleNumbersControllers {
             // Configurar filtros para payments
             const paymentWhere: any = {};
 
+            if (isResumenFilter) {
+                paymentWhere.isValid = true;
+
+                const now = new Date();
+                let fromDate: Date | null = null;
+
+                if (resumen1) {
+                    fromDate = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+                }
+                if (resumen2) {
+                    fromDate = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+                }
+                if (resumen3) {
+                    fromDate = new Date(now.getTime() - (30 * 24 * 60 * 60 * 1000));
+                }
+
+                if (fromDate) {
+                    paymentWhere.createdAt = {
+                        [Op.between]: [fromDate, now]
+                    };
+                }
+            }
+
             // Si se especifica paymentMethod, filtrar por método de pago
             if (rafflePayMethodeExits) {
                 paymentWhere.paymentMethodId = rafflePayMethodeExits.id;
@@ -340,7 +408,7 @@ class raffleNumbersControllers {
             }
 
             // Si se especifican ambas fechas, filtrar por rango de fechas
-            if (startDate && endDate) {
+            if (startDate && endDate && !isResumenFilter) {
                 const startDateFormatted = `${startDate} 00:00:00`;
                 const endDateFormatted = `${endDate} 23:59:59`;
                 
@@ -388,7 +456,7 @@ class raffleNumbersControllers {
                 include: [
                     {
                         model: Payment,
-                        required: !!rafflePayMethodeExits || (!!startDate && !!endDate) || !!userId,
+                        required: !!rafflePayMethodeExits || (!!startDate && !!endDate) || !!userId || isResumenFilter,
                         as: 'payments',
                         attributes: ['id','amount', 'createdAt', 'isValid', 'reference'], // Incluir reference
                         include: [
@@ -2018,6 +2086,53 @@ class raffleNumbersControllers {
                 telefono: raffleNumber.dataValues.phone,
                 name: `${raffleNumber.dataValues.firstName ?? ''} ${raffleNumber.dataValues.lastName ?? ''}`.trim(),
                 raffleName: raffle.dataValues.name
+            });
+        } catch (error) {
+            console.log(error);
+            res.status(500).json({ error: 'Hubo un Error' });
+        }
+    }
+
+    static getWhatsappAvisoDataByClient = async (req: Request, res: Response) => {
+        try {
+            const raffleId = req.raffle.id;
+            const clientId = req.client.id;
+
+            const raffleNumbers = await RaffleNumbers.findAll({
+                where: {
+                    raffleId,
+                    clienteId: clientId
+                },
+                attributes: ['number', 'phone', 'firstName', 'lastName'],
+                order: [['number', 'ASC']]
+            });
+
+            if (raffleNumbers.length === 0) {
+                res.status(404).json({ error: 'El cliente no tiene números asociados a esta rifa' });
+                return;
+            }
+
+            const firstNumber = raffleNumbers[0];
+            const phone = firstNumber.dataValues.phone || req.client.dataValues.phone;
+            const fullName = `${firstNumber.dataValues.firstName ?? req.client.dataValues.firstName ?? ''} ${firstNumber.dataValues.lastName ?? req.client.dataValues.lastName ?? ''}`.trim();
+
+            if (!phone || !fullName) {
+                res.status(422).json({ error: 'El cliente no tiene datos de contacto completos para WhatsApp' });
+                return;
+            }
+
+            const totalNumbers = await RaffleNumbers.count({
+                where: { raffleId }
+            });
+
+            const numbers = raffleNumbers.map((rn) => rn.dataValues.number);
+
+            res.json({
+                totalNumbers,
+                number: numbers,
+                telefono: phone,
+                name: fullName,
+                raffleName: req.raffle.dataValues.name
             });
         } catch (error) {
             console.log(error);

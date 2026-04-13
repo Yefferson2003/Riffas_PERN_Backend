@@ -1,7 +1,7 @@
 import { Router } from "express";
 import raffleNumbersControllers from "../controllers/raffleNumbersController";
 import { authenticate, authenticateSharedLink, checkRole, validateUserRaffle } from "../middlewares/auth";
-import { raffleExists, raffleNumberExists } from "../middlewares/model";
+import { clientExists, raffleExists, raffleNumberExists } from "../middlewares/model";
 import { validateIdParam, validateSchema } from "../middlewares/validateAuth";
 import { amountRaffleNumberSchema, amountRaffleNumberSharedSchema, sellRaffleNumbersSchema, updateRaffleNumber, validateRaffleNumbersStatus } from "../middlewares/validateRaffle";
 
@@ -75,6 +75,15 @@ router.get('/:raffleId/number/:raffleNumberId/whatsapp-aviso',
     raffleExists,
     raffleNumberExists,
     raffleNumbersControllers.getWhatsappAvisoData
+)
+
+router.get('/:raffleId/client/:clientId/whatsapp-aviso',
+    authenticate,
+    validateIdParam('raffleId'),
+    validateIdParam('clientId'),
+    raffleExists,
+    clientExists,
+    raffleNumbersControllers.getWhatsappAvisoDataByClient
 )
 
 router.post('/:raffleId/sell-numbers',
