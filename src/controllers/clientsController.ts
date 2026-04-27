@@ -310,112 +310,82 @@ class clientsController {
             const isAdmin = rolName === 'admin';
             const isResponsable = rolName === 'responsable';
             const isVendedor = rolName === 'vendedor';
+            let scopedRaffleIds: number[] | null = null;
 
             let clientIds: number[] = [];
             if (isAdmin) {
                 // Admin: ve todos los clientes
             } else if (isResponsable) {
-                // Responsable: ve clientes de dos fuentes
-                // 1. Clientes directamente asociados (UserClients)
-                let directClientIds: number[] = [];
-                const userClients = await UserClients.findAll({
-                    where: { userId: req.user.id },
-                    attributes: ['clientId']
-                });
-                directClientIds = userClients.map(uc => uc.dataValues.clientId);
-
-                // 2. Clientes de rifas donde el responsable participa
+                // Responsable: solo ve clientes con números en SUS propias rifas
                 const userRaffles = await UserRifa.findAll({
                     where: { userId: req.user.id },
                     attributes: ['rifaId']
                 });
-                const raffleIds = userRaffles.map(ur => ur.dataValues.rifaId);
-                
-                let raffleClientsIds: number[] = [];
-                if (raffleIds.length > 0) {
-                    const raffleNumbers = await RaffleNumbers.findAll({
-                        where: {
-                            raffleId: { [Op.in]: raffleIds },
-                            clienteId: { [Op.not]: null }
-                        },
-                        attributes: [['clienteId', 'clientId']],
-                        raw: true,
-                        group: ['clienteId']
-                    });
-                    raffleClientsIds = raffleNumbers.map(rn => (rn as any).clientId).filter(id => id);
+                const raffleIds = userRaffles
+                    .map((ur) => ur.dataValues.rifaId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
+                if (raffleIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
                 }
 
-                clientIds = [...new Set([...directClientIds, ...raffleClientsIds])];
+                scopedRaffleIds = raffleIds;
+
+                const raffleNumbers = await RaffleNumbers.findAll({
+                    where: {
+                        raffleId: { [Op.in]: raffleIds },
+                        clienteId: { [Op.not]: null }
+                    },
+                    attributes: [['clienteId', 'clientId']],
+                    raw: true,
+                    group: ['clienteId']
+                });
+                clientIds = raffleNumbers
+                    .map(rn => (rn as any).clientId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
                 if (clientIds.length === 0) {
                     res.json({ clients: [] });
                     return;
                 }
                 clientsWhere.id = { [Op.in]: clientIds };
             } else if (isVendedor) {
-                // Vendedor: ve clientes de cuatro fuentes
-                // 1. Clientes directamente asociados (UserClients)
-                let vendedorClientIds: number[] = [];
-                const userClientsSelf = await UserClients.findAll({
-                    where: { userId: req.user.id },
-                    attributes: ['clientId']
-                });
-                vendedorClientIds = userClientsSelf.map(uc => uc.dataValues.clientId);
-
-                // 2. Clientes asociados a su creador (responsable)
+                // Vendedor: solo ve clientes con números en las rifas de su responsable creador.
                 const createdBy = req.user.dataValues.createdBy;
-                if (createdBy) {
-                    const userClientsCreator = await UserClients.findAll({
-                        where: { userId: createdBy },
-                        attributes: ['clientId']
-                    });
-                    vendedorClientIds = vendedorClientIds.concat(userClientsCreator.map(uc => uc.dataValues.clientId));
+                if (!createdBy) {
+                    res.json({ clients: [] });
+                    return;
                 }
 
-                // 3. Clientes de rifas donde el vendedor participa
-                const userRaffles = await UserRifa.findAll({
-                    where: { userId: req.user.id },
+                const creatorRaffles = await UserRifa.findAll({
+                    where: { userId: createdBy },
                     attributes: ['rifaId']
                 });
-                const raffleIds = userRaffles.map(ur => ur.dataValues.rifaId);
-                
-                let raffleClientsIds: number[] = [];
-                if (raffleIds.length > 0) {
-                    const raffleNumbers = await RaffleNumbers.findAll({
-                        where: {
-                            raffleId: { [Op.in]: raffleIds },
-                            clienteId: { [Op.not]: null }
-                        },
-                        attributes: [['clienteId', 'clientId']],
-                        raw: true,
-                        group: ['clienteId']
-                    });
-                    raffleClientsIds = raffleNumbers.map(rn => (rn as any).clientId).filter(id => id);
+                scopedRaffleIds = creatorRaffles
+                    .map((ur) => ur.dataValues.rifaId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
+                if (scopedRaffleIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
                 }
 
-                // 4. Clientes de rifas donde su responsable (creador) participa
-                let creatorRaffleClientsIds: number[] = [];
-                if (createdBy) {
-                    const creatorRaffles = await UserRifa.findAll({
-                        where: { userId: createdBy },
-                        attributes: ['rifaId']
-                    });
-                    const creatorRaffleIds = creatorRaffles.map(ur => ur.dataValues.rifaId);
-                    
-                    if (creatorRaffleIds.length > 0) {
-                        const creatorRaffleNumbers = await RaffleNumbers.findAll({
-                            where: {
-                                raffleId: { [Op.in]: creatorRaffleIds },
-                                clienteId: { [Op.not]: null }
-                            },
-                            attributes: [['clienteId', 'clientId']],
-                            raw: true,
-                            group: ['clienteId']
-                        });
-                        creatorRaffleClientsIds = creatorRaffleNumbers.map(rn => (rn as any).clientId).filter(id => id);
-                    }
-                }
+                const creatorRaffleNumbers = await RaffleNumbers.findAll({
+                    where: {
+                        raffleId: { [Op.in]: scopedRaffleIds },
+                        clienteId: { [Op.not]: null },
+                        status: { [Op.not]: 'available' }
+                    },
+                    attributes: [['clienteId', 'clientId']],
+                    raw: true,
+                    group: ['clienteId']
+                });
 
-                clientIds = [...new Set([...vendedorClientIds, ...raffleClientsIds, ...creatorRaffleClientsIds])];
+                clientIds = creatorRaffleNumbers
+                    .map((rn) => Number((rn as any).clientId))
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
                 if (clientIds.length === 0) {
                     res.json({ clients: [] });
                     return;
@@ -475,8 +445,17 @@ class clientsController {
 
             // Pre-filtro por rifa: solo clientes con números en esa rifa
             if (hasRaffleFilter) {
+                if (scopedRaffleIds && !scopedRaffleIds.includes(raffleIdNumber)) {
+                    res.json({ clients: [] });
+                    return;
+                }
+
                 const raffleClientRows = await RaffleNumbers.findAll({
-                    where: { raffleId: raffleIdNumber, clienteId: { [Op.not]: null } },
+                    where: {
+                        raffleId: raffleIdNumber,
+                        clienteId: { [Op.not]: null },
+                        ...(scopedRaffleIds ? { raffleId: { [Op.in]: scopedRaffleIds, [Op.eq]: raffleIdNumber } } : {})
+                    },
                     attributes: [['clienteId', 'clientId']],
                     raw: true,
                     group: ['clienteId']
@@ -511,7 +490,11 @@ class clientsController {
                 const semaforoRows = await RaffleNumbers.findAll({
                     where: {
                         clienteId: { [Op.not]: null },
-                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                        ...(hasRaffleFilter
+                            ? { raffleId: raffleIdNumber }
+                            : scopedRaffleIds
+                                ? { raffleId: { [Op.in]: scopedRaffleIds } }
+                                : {})
                     },
                     attributes: [['clienteId', 'clientId']],
                     having: Sequelize.literal(havingClause),
@@ -550,7 +533,11 @@ class clientsController {
                     where: {
                         clienteId: { [Op.in]: exportClientIds },
                         status: { [Op.not]: 'available' },
-                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                        ...(hasRaffleFilter
+                            ? { raffleId: raffleIdNumber }
+                            : scopedRaffleIds
+                                ? { raffleId: { [Op.in]: scopedRaffleIds } }
+                                : {})
                     },
                     attributes: [
                         'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
@@ -713,7 +700,9 @@ class clientsController {
                     where: { userId: req.user.id },
                     attributes: ['rifaId']
                 });
-                const raffleIds = userRaffles.map(ur => ur.dataValues.rifaId);
+                const raffleIds = userRaffles
+                    .map((ur) => ur.dataValues.rifaId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
                 
                 let raffleClientsIds: number[] = [];
                 if (raffleIds.length > 0) {
@@ -765,7 +754,9 @@ class clientsController {
                     where: { userId: req.user.id },
                     attributes: ['rifaId']
                 });
-                const raffleIds = userRaffles.map(ur => ur.dataValues.rifaId);
+                const raffleIds = userRaffles
+                    .map((ur) => ur.dataValues.rifaId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
                 
                 let raffleClientsIds: number[] = [];
                 if (raffleIds.length > 0) {
@@ -891,45 +882,47 @@ class clientsController {
             const isAdmin = rolName === 'admin';
             const isResponsable = rolName === 'responsable';
             const isVendedor = rolName === 'vendedor';
+            let scopedRaffleIds: number[] | null = null;
 
             let clientIds: number[] = [];
             if (isAdmin) {
                 // Admin: ve todos los clientes
                 // No se filtra por clientIds
             } else if (isResponsable) {
-                // Responsable: ve clientes de dos fuentes
-                // 1. Clientes directamente asociados (UserClients)
-                let directClientIds: number[] = [];
-                const userClients = await UserClients.findAll({
-                    where: { userId: req.user.id },
-                    attributes: ['clientId']
-                });
-                directClientIds = userClients.map(uc => uc.dataValues.clientId);
-
-                // 2. Clientes de rifas donde el responsable participa
+                // Responsable: solo ve clientes con números en SUS propias rifas
                 const userRaffles = await UserRifa.findAll({
                     where: { userId: req.user.id },
                     attributes: ['rifaId']
                 });
-                const raffleIds = userRaffles.map(ur => ur.dataValues.rifaId);
-                
-                let raffleClientsIds: number[] = [];
-                if (raffleIds.length > 0) {
-                    // Obtener clientes de números en esas rifas (sin duplicados)
-                    const raffleNumbers = await RaffleNumbers.findAll({
-                        where: {
-                            raffleId: { [Op.in]: raffleIds },
-                            clienteId: { [Op.not]: null }
-                        },
-                        attributes: [['clienteId', 'clientId']],
-                        raw: true,
-                        group: ['clienteId']
+                const raffleIds = userRaffles
+                    .map(ur => ur.dataValues.rifaId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
+                if (raffleIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
                     });
-                    raffleClientsIds = raffleNumbers.map(rn => (rn as any).clientId).filter(id => id);
+                    return;
                 }
 
-                // Combinar y eliminar duplicados
-                clientIds = [...new Set([...directClientIds, ...raffleClientsIds])];
+                scopedRaffleIds = raffleIds;
+
+                const raffleNumbers = await RaffleNumbers.findAll({
+                    where: {
+                        raffleId: { [Op.in]: raffleIds },
+                        clienteId: { [Op.not]: null }
+                    },
+                    attributes: [['clienteId', 'clientId']],
+                    raw: true,
+                    group: ['clienteId']
+                });
+                clientIds = raffleNumbers
+                    .map(rn => (rn as any).clientId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
                 if (clientIds.length === 0) {
                     res.json({
                         total: 0,
@@ -941,71 +934,56 @@ class clientsController {
                 }
                 clientsWhere.id = { [Op.in]: clientIds };
             } else if (isVendedor) {
-                // Vendedor: ve clientes de dos fuentes
-                // 1. Clientes directamente asociados (UserClients)
-                let vendedorClientIds: number[] = [];
-                const userClientsSelf = await UserClients.findAll({
-                    where: { userId: req.user.id },
-                    attributes: ['clientId']
-                });
-                vendedorClientIds = userClientsSelf.map(uc => uc.dataValues.clientId);
-
-                // 2. Clientes de su creador (responsable)
+                // Vendedor: solo ve clientes con números en rifas a las que él tiene acceso.
                 const createdBy = req.user.dataValues.createdBy;
-                if (createdBy) {
-                    const userClientsCreator = await UserClients.findAll({
-                        where: { userId: createdBy },
-                        attributes: ['clientId']
-                    });
-                    vendedorClientIds = vendedorClientIds.concat(userClientsCreator.map(uc => uc.dataValues.clientId));
-                }
-
-                // 3. Clientes de rifas donde el vendedor participa
                 const userRaffles = await UserRifa.findAll({
                     where: { userId: req.user.id },
                     attributes: ['rifaId']
                 });
-                const raffleIds = userRaffles.map(ur => ur.dataValues.rifaId);
-                
-                let raffleClientsIds: number[] = [];
-                if (raffleIds.length > 0) {
-                    const raffleNumbers = await RaffleNumbers.findAll({
-                        where: {
-                            raffleId: { [Op.in]: raffleIds },
-                            clienteId: { [Op.not]: null }
-                        },
-                        attributes: [['clienteId', 'clientId']],
-                        raw: true,
-                        group: ['clienteId']
-                    });
-                    raffleClientsIds = raffleNumbers.map(rn => (rn as any).clientId).filter(id => id);
-                }
+                const sellerRaffleIds = userRaffles
+                    .map((ur) => ur.dataValues.rifaId)
+                    .filter((id) => Number.isInteger(id) && id > 0);
 
-                // 4. Clientes de rifas donde su responsable (creador) participa
-                let creatorRaffleClientsIds: number[] = [];
+                // Si existe creador, mantenemos consistencia limitando a la intersección con sus rifas.
                 if (createdBy) {
                     const creatorRaffles = await UserRifa.findAll({
                         where: { userId: createdBy },
                         attributes: ['rifaId']
                     });
-                    const creatorRaffleIds = creatorRaffles.map(ur => ur.dataValues.rifaId);
-                    
-                    if (creatorRaffleIds.length > 0) {
-                        const creatorRaffleNumbers = await RaffleNumbers.findAll({
-                            where: {
-                                raffleId: { [Op.in]: creatorRaffleIds },
-                                clienteId: { [Op.not]: null }
-                            },
-                            attributes: [['clienteId', 'clientId']],
-                            raw: true,
-                            group: ['clienteId']
-                        });
-                        creatorRaffleClientsIds = creatorRaffleNumbers.map(rn => (rn as any).clientId).filter(id => id);
-                    }
+                    const creatorRaffleIds = creatorRaffles
+                        .map((ur) => ur.dataValues.rifaId)
+                        .filter((id) => Number.isInteger(id) && id > 0);
+
+                    scopedRaffleIds = sellerRaffleIds.filter((id) => creatorRaffleIds.includes(id));
+                } else {
+                    scopedRaffleIds = sellerRaffleIds;
                 }
 
-                // Eliminar duplicados combinando todas las fuentes
-                clientIds = [...new Set([...vendedorClientIds, ...raffleClientsIds, ...creatorRaffleClientsIds])];
+                if (scopedRaffleIds.length === 0) {
+                    res.json({
+                        total: 0,
+                        clients: [],
+                        totalPages: 1,
+                        currentPage: pageNumber
+                    });
+                    return;
+                }
+
+                const creatorRaffleNumbers = await RaffleNumbers.findAll({
+                    where: {
+                        raffleId: { [Op.in]: scopedRaffleIds },
+                        clienteId: { [Op.not]: null },
+                        status: { [Op.not]: 'available' }
+                    },
+                    attributes: [['clienteId', 'clientId']],
+                    raw: true,
+                    group: ['clienteId']
+                });
+
+                clientIds = creatorRaffleNumbers
+                    .map((rn) => Number((rn as any).clientId))
+                    .filter((id) => Number.isInteger(id) && id > 0);
+
                 if (clientIds.length === 0) {
                     res.json({
                         total: 0,
@@ -1072,8 +1050,16 @@ class clientsController {
 
             // Pre-filtro por rifa: solo clientes con números en esa rifa
             if (hasRaffleFilter) {
+                if (scopedRaffleIds && !scopedRaffleIds.includes(raffleIdNumber)) {
+                    res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                    return;
+                }
+
                 const raffleClientRows = await RaffleNumbers.findAll({
-                    where: { raffleId: raffleIdNumber, status: { [Op.not]: 'available' } },
+                    where: {
+                        raffleId: raffleIdNumber,
+                        status: { [Op.not]: 'available' }
+                    },
                     attributes: ['clienteId'],
                     raw: true,
                     group: ['clienteId']
@@ -1108,7 +1094,11 @@ class clientsController {
                 const semaforoRows = await RaffleNumbers.findAll({
                     where: {
                         clienteId: { [Op.not]: null },
-                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                        ...(hasRaffleFilter
+                            ? { raffleId: raffleIdNumber }
+                            : scopedRaffleIds
+                                ? { raffleId: { [Op.in]: scopedRaffleIds } }
+                                : {})
                     },
                     attributes: [['clienteId', 'clientId']],
                     having: Sequelize.literal(havingClause),
@@ -1156,7 +1146,11 @@ class clientsController {
                     where: {
                         clienteId: { [Op.in]: pageClientIds },
                         status: { [Op.not]: 'available' },
-                        ...(hasRaffleFilter ? { raffleId: raffleIdNumber } : {})
+                        ...(hasRaffleFilter
+                            ? { raffleId: raffleIdNumber }
+                            : scopedRaffleIds
+                                ? { raffleId: { [Op.in]: scopedRaffleIds } }
+                                : {})
                     },
                     attributes: [
                         'id', 'number', 'reservedDate', 'paymentAmount', 'paymentDue', 'status', 'clienteId', 'raffleId'
@@ -1239,7 +1233,8 @@ class clientsController {
             if (clientIdsForStatus.length > 0) {
                 const clientsPaymentStats = await RaffleNumbers.findAll({
                     where: {
-                        clienteId: { [Op.in]: clientIdsForStatus }
+                        clienteId: { [Op.in]: clientIdsForStatus },
+                        ...(scopedRaffleIds ? { raffleId: { [Op.in]: scopedRaffleIds } } : {})
                     },
                     attributes: [
                         'clienteId',
