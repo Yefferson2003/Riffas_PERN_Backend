@@ -105,6 +105,11 @@ export const authenticateSharedLink = async (req: Request, res: Response, next: 
             return
         }
 
+        if (raffle.dataValues.visible === false) {
+            res.status(404).json({ error: "Rifa no encontrada" });
+            return
+        }
+
         req.raffle = raffle;
 
         next();

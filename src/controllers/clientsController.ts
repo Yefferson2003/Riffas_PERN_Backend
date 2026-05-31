@@ -12,6 +12,20 @@ import UserClients from '../models/user_clients';
 import UserRifa from '../models/user_raffle';
 import { clientOrderMap } from '../utils';
 
+async function getVisibleRaffleIds(raffleIds: number[]) {
+    if (raffleIds.length === 0) return [];
+
+    const visibleRaffles = await Raffle.findAll({
+        where: {
+            id: { [Op.in]: raffleIds },
+            visible: true
+        },
+        attributes: ['id']
+    });
+
+    return visibleRaffles.map((r) => r.id);
+}
+
 class clientsController {
 
     static async getClientsSharedLinkAll(req: Request, res: Response) {
@@ -35,6 +49,7 @@ class clientsController {
             let clientsWhere: any = {};
             
             const rolName = req.user.dataValues.rol?.dataValues?.name || req.user.dataValues.rol?.name || req.user.rol?.name || '';
+            const isAdmin = rolName === 'admin';
             const isResponsable = rolName === 'responsable';
             const isVendedor = rolName === 'vendedor';
             let userRaffleIds: number[] = [];
@@ -45,6 +60,14 @@ class clientsController {
                 });
                 userRaffleIds = userRifas.map((ur) => ur.rifaId ?? ur.dataValues.rifaId);
                 // Si no tiene rifas asociadas, forzar que no retorne nada
+                if (userRaffleIds.length === 0) {
+                    res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                    return;
+                }
+            }
+
+            if (!isAdmin && userRaffleIds.length > 0) {
+                userRaffleIds = await getVisibleRaffleIds(userRaffleIds);
                 if (userRaffleIds.length === 0) {
                     res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
                     return;
@@ -128,8 +151,10 @@ class clientsController {
                         SELECT 1
                         FROM "raffle_numbers" rn
                         INNER JOIN "purchases" p ON p.id = rn."purchaseId"
+                        INNER JOIN "raffles" r ON r.id = rn."raffleId"
                         WHERE rn."clienteId" = "Clients"."id"
                         AND p.source = 'shared_link'
+                        ${!isAdmin ? 'AND r."visible" = true' : ''}
                         ${statusSql}
                         ${userRaffleIds.length > 0
                             ? `AND rn."raffleId" IN (${userRaffleIds.join(',')})`
@@ -157,6 +182,7 @@ class clientsController {
                         separate: true,
                         where: {
                             ...raffleNumbersWhere,
+                            ...(!isAdmin && userRaffleIds.length > 0 ? { raffleId: { [Op.in]: userRaffleIds } } : {}),
                             [Op.or]: [
                                 { clienteId: { [Op.in]: clientesPurchaseIds } },
                                 ...(userRaffleIds.length > 0 ? [{ raffleId: { [Op.in]: userRaffleIds } }] : [])
@@ -190,7 +216,8 @@ class clientsController {
                             {
                                 model: Raffle,
                                 as: 'raffle',
-                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
+                                attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable'],
+                                ...(!isAdmin ? { where: { visible: true }, required: true } : {})
                             }
                         ],
                         order: [['reservedDate', 'DESC']]
@@ -405,6 +432,14 @@ class clientsController {
                 clientsWhere.id = { [Op.in]: clientIds };
             }
 
+            if (!isAdmin && scopedRaffleIds && scopedRaffleIds.length > 0) {
+                scopedRaffleIds = await getVisibleRaffleIds(scopedRaffleIds);
+                if (scopedRaffleIds.length === 0) {
+                    res.json({ clients: [] });
+                    return;
+                }
+            }
+
             // Filtro de búsqueda por nombre, apellido, teléfono y dirección
             if (search) {
                 const searchConditions = [];
@@ -445,6 +480,17 @@ class clientsController {
 
             // Pre-filtro por rifa: solo clientes con números en esa rifa
             if (hasRaffleFilter) {
+                if (!isAdmin) {
+                    const visibleRaffle = await Raffle.findOne({
+                        where: { id: raffleIdNumber, visible: true },
+                        attributes: ['id']
+                    });
+                    if (!visibleRaffle) {
+                        res.json({ clients: [] });
+                        return;
+                    }
+                }
+
                 if (scopedRaffleIds && !scopedRaffleIds.includes(raffleIdNumber)) {
                     res.json({ clients: [] });
                     return;
@@ -546,7 +592,8 @@ class clientsController {
                         {
                             model: Raffle,
                             as: 'raffle',
-                            attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
+                            attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable'],
+                            ...(!isAdmin ? { where: { visible: true }, required: true } : {})
                         },
                         {
                             model: Payment,
@@ -703,12 +750,14 @@ class clientsController {
                 const raffleIds = userRaffles
                     .map((ur) => ur.dataValues.rifaId)
                     .filter((id) => Number.isInteger(id) && id > 0);
+
+                const allowedRaffleIds = await getVisibleRaffleIds(raffleIds);
                 
                 let raffleClientsIds: number[] = [];
-                if (raffleIds.length > 0) {
+                if (allowedRaffleIds.length > 0) {
                     const raffleNumbers = await RaffleNumbers.findAll({
                         where: {
-                            raffleId: { [Op.in]: raffleIds },
+                            raffleId: { [Op.in]: allowedRaffleIds },
                             clienteId: { [Op.not]: null }
                         },
                         attributes: [['clienteId', 'clientId']],
@@ -757,12 +806,14 @@ class clientsController {
                 const raffleIds = userRaffles
                     .map((ur) => ur.dataValues.rifaId)
                     .filter((id) => Number.isInteger(id) && id > 0);
+
+                const allowedSellerRaffleIds = await getVisibleRaffleIds(raffleIds);
                 
                 let raffleClientsIds: number[] = [];
-                if (raffleIds.length > 0) {
+                if (allowedSellerRaffleIds.length > 0) {
                     const raffleNumbers = await RaffleNumbers.findAll({
                         where: {
-                            raffleId: { [Op.in]: raffleIds },
+                            raffleId: { [Op.in]: allowedSellerRaffleIds },
                             clienteId: { [Op.not]: null }
                         },
                         attributes: [['clienteId', 'clientId']],
@@ -780,11 +831,12 @@ class clientsController {
                         attributes: ['rifaId']
                     });
                     const creatorRaffleIds = creatorRaffles.map(ur => ur.dataValues.rifaId);
+                    const allowedCreatorRaffleIds = await getVisibleRaffleIds(creatorRaffleIds);
                     
-                    if (creatorRaffleIds.length > 0) {
+                    if (allowedCreatorRaffleIds.length > 0) {
                         const creatorRaffleNumbers = await RaffleNumbers.findAll({
                             where: {
-                                raffleId: { [Op.in]: creatorRaffleIds },
+                                raffleId: { [Op.in]: allowedCreatorRaffleIds },
                                 clienteId: { [Op.not]: null }
                             },
                             attributes: [['clienteId', 'clientId']],
@@ -1013,6 +1065,14 @@ class clientsController {
                 clientsWhere.id = { [Op.in]: clientIds };
             }
 
+            if (!isAdmin && scopedRaffleIds && scopedRaffleIds.length > 0) {
+                scopedRaffleIds = await getVisibleRaffleIds(scopedRaffleIds);
+                if (scopedRaffleIds.length === 0) {
+                    res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                    return;
+                }
+            }
+
             if (search) {
                 const searchConditions = [];
                 // Siempre buscar por teléfono
@@ -1050,6 +1110,17 @@ class clientsController {
 
             // Pre-filtro por rifa: solo clientes con números en esa rifa
             if (hasRaffleFilter) {
+                if (!isAdmin) {
+                    const visibleRaffle = await Raffle.findOne({
+                        where: { id: raffleIdNumber, visible: true },
+                        attributes: ['id']
+                    });
+                    if (!visibleRaffle) {
+                        res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
+                        return;
+                    }
+                }
+
                 if (scopedRaffleIds && !scopedRaffleIds.includes(raffleIdNumber)) {
                     res.json({ total: 0, clients: [], totalPages: 1, currentPage: pageNumber });
                     return;
@@ -1159,7 +1230,8 @@ class clientsController {
                         {
                             model: Raffle,
                             as: 'raffle',
-                            attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable']
+                            attributes: ['id', 'name', 'playDate', 'price', 'color', 'description', 'nameResponsable'],
+                            ...(!isAdmin ? { where: { visible: true }, required: true } : {})
                         },
                         {
                             model: Payment,
@@ -1432,7 +1504,8 @@ class clientsController {
         try {
             const raffleExists = await Raffle.findOne({
                 where: {
-                    id: raffleId
+                    id: raffleId,
+                    ...(req.user.dataValues.rol.dataValues.name !== 'admin' ? { visible: true } : {})
                 },
                 attributes: ['id', 'price', 'playDate']
             });

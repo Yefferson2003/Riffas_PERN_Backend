@@ -35,6 +35,10 @@ class raffleController {
 
             const isUser = req.user.dataValues.rol.dataValues.name !== 'admin';
 
+            if (isUser) {
+                filter.visible = true;
+            }
+
             let filterUserRaffle: any = {};
             if (isUser) {
                 filterUserRaffle.userId = req.user.id;
@@ -128,8 +132,13 @@ class raffleController {
                 });
             }
 
+            if (userRole !== 'admin') {
+                filterUserRaffle.visible = true;
+            }
+
             const raffles = await Raffle.findAll({
                 attributes: ['id', 'name',],
+                where: userRole !== 'admin' ? { visible: true } : {},
                 include
             });
 
@@ -205,6 +214,12 @@ class raffleController {
 
     static getRaffleById = async (req : Request, res : Response) => {
         try {
+            const userRole = req.user.dataValues.rol.dataValues.name;
+            if (userRole !== 'admin' && req.raffle.visible === false) {
+                res.status(404).json({ error: 'Rifa no encontrada' });
+                return;
+            }
+
             const raffle = await Raffle.findByPk(req.raffle.id,{
                 include: [
                     {
@@ -779,8 +794,9 @@ class raffleController {
     }
     static deleteRaffle = async (req : Request, res : Response) => {
         try {
+            const userRole = req.user.dataValues.rol.dataValues.name;
 
-            if (req.user.dataValues.rol.dataValues.name === "responsable") {
+            if (userRole === "responsable") {
                 const asignacionExist = await UserRifa.findOne({
                     where: {
                         userId: req.user.id,
@@ -796,42 +812,27 @@ class raffleController {
                 }
             }
 
-
-            const raffleNumberIds = await RaffleNumbers.findAll({
-                attributes: ['id'], 
-                where: {
-                    raffleId: req.raffle.id
-                }
+            const raffleToUpdate = await Raffle.findByPk(req.raffle.id, {
+                attributes: ['id', 'visible']
             });
 
-            const ids = raffleNumberIds.map((raffleNumber) => raffleNumber.id);
-
-            if (ids.length > 0) { 
-                await Payment.destroy({
-                    where: {
-                        riffleNumberId: {
-                            [Op.in]: ids
-                        }
-                    }
-                });
+            if (!raffleToUpdate) {
+                res.status(404).json({ error: 'Rifa no encontrada' })
+                return
             }
-            await RaffleNumbers.destroy({
-                where: {
-                    raffleId: req.raffle.id
-                }
-            })
 
-            await UserRifa.destroy({
-                where: {
-                    rifaId: req.raffle.id
-                }
-            })
+            const currentVisible = raffleToUpdate.visible;
+            const nextVisible = userRole === 'admin' ? !currentVisible : false;
+            await raffleToUpdate.update({ visible: nextVisible });
 
-            await req.raffle.destroy()
+            req.app.get('io').emit('deleteRaffle');
 
-            req.app.get('io').emit('deleteRaffle'); 
+            if (userRole !== 'admin') {
+                res.status(200).send('Rifa eliminada correctamente')
+                return
+            }
 
-            res.status(200).send('Rifa Elimina correctamente')
+            res.status(200).send(nextVisible ? 'Rifa visible nuevamente' : 'Rifa eliminada correctamente')
         } catch (error) {
             console.log(error);
             res.status(500).json({error: 'Hubo un Error'})

@@ -66,9 +66,16 @@ export async function raffleExists(req:Request, res:Response, next:NextFunction)
     const {raffleId} = req.params
     try {
         const raffle = await Raffle.findByPk(raffleId, {
-            attributes: ['id', 'price','name', 'startDate', 'editDate', 'description', 'playDate'],
+            attributes: ['id', 'price','name', 'startDate', 'editDate', 'description', 'playDate', 'visible'],
         })
         if (!elementExists(res, raffle)) return
+
+        // Restringe el acceso a rifas no visibles para cualquier rol distinto de admin.
+        if (req.user && req.user.dataValues.rol.dataValues.name !== 'admin' && raffle.dataValues.visible === false) {
+            res.status(404).json({ error: 'Rifa no encontrada' })
+            return
+        }
+
         req.raffle = raffle
         next()
     } catch (error) {

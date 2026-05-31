@@ -32,6 +32,14 @@ export function formatPostgresDateToReadable(dateString: string): string {
 
 class raffleNumbersControllers {
 
+    private static validateSharedRaffleVisible(req: Request, res: Response): boolean {
+        if (req.raffle?.visible === false) {
+            res.status(404).json({ error: 'Rifa no encontrada' });
+            return false;
+        }
+        return true;
+    }
+
     static getRaffleNumbersShared = async (req: Request, res: Response) => {
         const {search, amount, available, sold, pending, page = 1, limit = 100,} = req.query
 
@@ -41,6 +49,8 @@ class raffleNumbersControllers {
         
 
         try {
+
+            if (!raffleNumbersControllers.validateSharedRaffleVisible(req, res)) return;
 
             const filter : any = {}
 
@@ -657,6 +667,7 @@ class raffleNumbersControllers {
 
     static getRaffleNumberByIdShared = async (req: Request, res: Response) => {
         try {
+            if (!raffleNumbersControllers.validateSharedRaffleVisible(req, res)) return;
             res.json(req.raffleNumber)
         } catch (error) {
             console.log(error);
@@ -1715,6 +1726,8 @@ class raffleNumbersControllers {
             return;
         }
 
+        if (!raffleNumbersControllers.validateSharedRaffleVisible(req, res)) return;
+
         const { firstName, lastName, phone, address, amount, paymentMethod, reference, raffleNumbersIds} = parsed.data;
 
         if (phone) {
@@ -2016,6 +2029,8 @@ class raffleNumbersControllers {
 
     static getRandomAvailableNumberShared = async (req: Request, res: Response) => {
         try {
+
+            if (!raffleNumbersControllers.validateSharedRaffleVisible(req, res)) return;
 
             const count = await RaffleNumbers.count({
             where: { raffleId: req.raffle.id, status: 'available' }

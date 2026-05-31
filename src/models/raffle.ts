@@ -105,6 +105,14 @@ class Raffle extends Model {
     })
     color: string
 
+    @Default(true)
+    @Column({
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: true
+    })
+    visible: boolean
+
     @HasMany(() => RaffleNumbers)
     raffleNumbers: RaffleNumbers[]
 
